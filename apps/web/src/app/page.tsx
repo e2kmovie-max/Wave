@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/card";
 import { isGoogleOAuthConfigured, isBotConfigured } from "@wave/shared";
 import { readSession } from "@/lib/session";
+import { CreateRoomForm } from "./create-room-form";
 
 export const dynamic = "force-dynamic";
 
@@ -59,14 +60,18 @@ export default async function Home() {
           in lockstep with everyone in the party. Sign in with Google on the
           web or open Wave inside Telegram — your accounts can be linked.
         </p>
-        <div className="flex flex-wrap items-center justify-center gap-3">
-          <Link href="/login">
-            <Button size="lg">Get started</Button>
-          </Link>
-          <a href="https://github.com/e2kmovie-max/Wave" target="_blank" rel="noreferrer">
-            <Button variant="secondary" size="lg">View on GitHub</Button>
-          </a>
-        </div>
+        {session ? (
+          <CreateRoomForm />
+        ) : (
+          <div className="flex flex-wrap items-center justify-center gap-3">
+            <Link href="/login">
+              <Button size="lg">Get started</Button>
+            </Link>
+            <a href="https://github.com/e2kmovie-max/Wave" target="_blank" rel="noreferrer">
+              <Button variant="secondary" size="lg">View on GitHub</Button>
+            </a>
+          </div>
+        )}
       </section>
 
       <section className="grid gap-4 pb-10 md:grid-cols-3">

@@ -1,5 +1,5 @@
 import { Composer } from "grammy";
-import { User } from "@wave/shared";
+import { Room, User, getEnv } from "@wave/shared";
 import type { WaveContext } from "../context";
 
 export const startHandler = new Composer<WaveContext>();
@@ -12,6 +12,13 @@ startHandler.command("start", async (ctx) => {
       { _id: ctx.user._id },
       { $set: { lastStartPayload: payload } },
     );
+    const room = await Room.findOne({ botPayload: payload, isClosed: false }).lean();
+    if (room) {
+      const env = getEnv();
+      const url = `${env.PUBLIC_WEB_URL.replace(/\/$/, "")}/rooms/${room.code}`;
+      await ctx.reply(`Open this Wave room:\n${url}`);
+      return;
+    }
   }
 
   const lines = [
@@ -22,7 +29,7 @@ startHandler.command("start", async (ctx) => {
   if (payload) {
     lines.push("");
     lines.push(
-      `You arrived with payload <code>${escapeHtml(payload)}</code>. Room logic is wired up in stage 3 — you'll be redirected automatically there.`,
+      `You arrived with payload <code>${escapeHtml(payload)}</code>, but I could not find an active room for it.`,
     );
   }
   if (ctx.isAdmin) {

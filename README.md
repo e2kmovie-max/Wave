@@ -5,13 +5,12 @@ watch in lockstep with your friends — from the web (Google sign-in) or from
 inside Telegram (bot + Mini App). Both identities can be linked into a single
 account.
 
-> **Status:** Stage 2 of 5 — streaming instance + master/instance plumbing.
-> On top of the Stage 1 foundation, the repo now ships:
-> a Go binary (`apps/instance`) that hosts on `:8080` and runs yt-dlp + ffmpeg
-> behind HMAC-authenticated `/info` and `/stream` endpoints; a typed instance
-> client and env-driven instance registration on the master node; and a
-> background `/health` probe loop. Rooms, sync, and the admin panel arrive
-> in Stages 3–4.
+> **Status:** Stage 3 of 5 — watch-party rooms and synchronized playback.
+> On top of the Stage 1–2 foundation, the repo now creates rooms from the web
+> or bot, auto-selects a healthy streaming instance, fetches video preview
+> metadata, proxies fragmented MP4 streams through the master node, and keeps
+> play / pause / seek / quality in sync over a WebSocket room channel. Admin
+> tooling and cookie-pool management arrive in Stage 4.
 
 ## Stack
 
@@ -27,7 +26,7 @@ account.
 ```
 Wave/
 ├── apps/
-│   ├── web/          Next.js app (Google OAuth, Mini App, account UI)
+│   ├── web/          Next.js app (auth, rooms, stream proxy, WebSocket sync)
 │   ├── bot/          grammY Telegram bot
 │   └── instance/     Go streaming instance (Stage 2)
 ├── packages/
@@ -106,7 +105,7 @@ Wave/
 6. **Run the apps.** In two terminals:
 
    ```bash
-   bun run dev:web   # http://localhost:3000
+   bun run dev:web   # http://localhost:3000 (custom Next server + WebSockets)
    bun run dev:bot   # long-poll (skipped automatically if BOT_TOKEN is empty)
    ```
 
@@ -159,6 +158,33 @@ DevTools Protocol cookie shape (`name`, `value`, `domain`, `path`, `expires`,
 temp dir, hands it to `yt-dlp --cookies`, and `defer`-deletes it after the
 request — nothing about the cookie persists across requests.
 
+## Watch-party rooms (Stage 3)
+
+Signed-in users can create rooms from the home page by pasting a video URL.
+The master node:
+
+1. selects an enabled, healthy instance with available stream capacity;
+2. rotates to the least-recently-used enabled `GoogleAccount` cookie record
+   when one exists;
+3. calls the instance `/info` endpoint to build preview metadata and quality
+   presets;
+4. stores the selected instance, metadata, participants, and sync state on the
+   `Room` document.
+
+The room page at `/rooms/<code>` streams through
+`/api/rooms/<code>/stream?format=...`, so clients never talk to the worker
+instance directly. Playback state is synchronized over the custom Next server's
+WebSocket upgrade route:
+
+```
+ws(s)://<web-host>/api/rooms/<code>/sync
+```
+
+Messages support `play`, `pause`, `seek`, and `quality`; every update is also
+persisted to MongoDB so late joiners receive the current playhead. A plain HTTP
+instance URL (`http://ip:8080` or `http://localhost:8080`) is allowed because it
+is only called from the trusted master node.
+
 ## Schemas (Mongoose + InferSchemaType)
 
 All in `packages/shared/src/models`:
@@ -166,7 +192,7 @@ All in `packages/shared/src/models`:
 | Model | Purpose |
 | --- | --- |
 | `User` | Wave user with optional Google and Telegram identities. Holds OP state, last `start` payload, admin flag. |
-| `Room` | A watch party: video metadata, participants, current playhead, selected `Instance`. Stage 3 fills this out. |
+| `Room` | A watch party: video metadata, participants, current playhead, selected `Instance`, and optional bot invite payload. |
 | `Instance` | A Go streaming instance with HMAC secret, health stats, optional cap on parallel streams. |
 | `GoogleAccount` | Pool of YouTube cookies (Netscape format, AES-256-GCM at rest). Rotation logic lands in Stage 4. |
 | `RequiredChannel` | Telegram channels users must join before creating/joining a room (admin-managed). |
@@ -185,7 +211,7 @@ See [`.env.example`](./.env.example) for the full list. Required at minimum:
 | Stage | Scope |
 | --- | --- |
 | 1 — Foundation *(merged)* | Monorepo, schemas, auth, account linking, bot scaffold, MongoDB compose. |
-| **2 — Streaming instance** *(this PR)* | Go binary on `:8080`, yt-dlp + ffmpeg, HMAC `/info` and `/stream`, env-driven master sync, health probe loop. |
-| 3 — Watch party logic | Room creation, instance selection, chunked stream proxy, WebSocket sync (play / pause / seek / quality). |
+| 2 — Streaming instance *(merged)* | Go binary on `:8080`, yt-dlp + ffmpeg, HMAC `/info` and `/stream`, env-driven master sync, health probe loop. |
+| **3 — Watch party logic** *(this PR)* | Room creation, instance selection, chunked stream proxy, WebSocket sync (play / pause / seek / quality). |
 | 4 — Bot + admin | Required-subscription system, deep-link payload rooms, multi-cookie rotation pool, instance admin. |
 | 5 — Polish | i18n (RU/EN with Accept-Language autodetect), banned-cookie auto-rotation, observability, deployment docs. |
