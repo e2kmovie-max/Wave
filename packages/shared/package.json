@@ -1,0 +1,25 @@
+{
+  "name": "@wave/shared",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./models": "./src/models/index.ts",
+    "./db": "./src/db.ts",
+    "./env": "./src/env.ts",
+    "./crypto": "./src/crypto.ts",
+    "./telegram": "./src/telegram.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "lint": "echo \"(no lint configured for shared)\""
+  },
+  "dependencies": {
+    "mongoose": "^8.8.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.3"
+  }
+}
