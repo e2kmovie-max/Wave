@@ -1,0 +1,21 @@
+services:
+  mongodb:
+    image: mongo:7
+    container_name: wave-mongodb
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: wave
+      MONGO_INITDB_ROOT_PASSWORD: wave
+      MONGO_INITDB_DATABASE: wave
+    volumes:
+      - wave_mongo_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  wave_mongo_data:

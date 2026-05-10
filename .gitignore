@@ -79,7 +79,34 @@ typings/
 
 # dotenv environment variables file
 .env
+.env.local
 .env.test
+.env.production
+.env.development.local
+.env.production.local
+.env.test.local
+
+# Wave: per-app build outputs and caches
+apps/web/.next/
+apps/web/out/
+apps/web/next-env.d.ts
+apps/*/dist/
+packages/*/dist/
+
+# Bun
+.bun/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+
+# Wave: secrets and uploaded cookies (must not be committed)
+data/cookies/
+*.cookies.txt
 
 # parcel-bundler cache (https://parceljs.org/)
 .cache
