@@ -17,5 +17,27 @@ services:
       timeout: 5s
       retries: 5
 
+  # Local streaming instance — yt-dlp + ffmpeg + the Go binary on :8080.
+  # Opt-in: bring up with `docker compose --profile instance up -d`.
+  # Build context is the repo root so the Dockerfile can copy `apps/instance`.
+  instance:
+    build:
+      context: .
+      dockerfile: apps/instance/Dockerfile
+    container_name: wave-instance
+    restart: unless-stopped
+    profiles: ["instance"]
+    ports:
+      - "8080:8080"
+    environment:
+      PORT: "8080"
+      INSTANCE_SECRET: "${INSTANCE_LOCAL_SECRET:-dev-instance-secret-change-me}"
+      INSTANCE_MAX_STREAMS: "0"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
 volumes:
   wave_mongo_data:
