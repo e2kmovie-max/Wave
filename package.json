@@ -13,6 +13,9 @@
     "build": "bun --filter '*' build",
     "lint": "bun --filter '*' lint",
     "typecheck": "bun --filter '*' typecheck",
+    "test": "bun test packages/shared/test",
+    "instance:up": "docker compose --profile instance up -d --build",
+    "instance:down": "docker compose --profile instance down",
     "db:up": "docker compose up -d mongodb",
     "db:down": "docker compose down"
   },

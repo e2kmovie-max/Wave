@@ -31,6 +31,37 @@ const baseSchema = z.object({
         .map((x) => Number(x))
         .filter((n) => Number.isFinite(n)),
     ),
+
+  /**
+   * Optional JSON array of streaming instances to upsert into Mongo on master
+   * startup. Each entry must have `name`, `url`, and `secret`; `isLocal` is
+   * optional. Admin-added instances (those without `managedByEnv:true`) are
+   * never overwritten by this sync.
+   *
+   * Example:
+   *   INSTANCES_JSON='[{"name":"local","url":"http://localhost:8080","secret":"..."}]'
+   */
+  INSTANCES_JSON: z.string().optional().default(""),
+
+  /** How often the master pings each instance's /health (seconds). */
+  INSTANCE_HEALTH_INTERVAL_SECONDS: z
+    .string()
+    .optional()
+    .default("15")
+    .transform((s) => {
+      const n = Number(s);
+      return Number.isFinite(n) && n > 0 ? n : 15;
+    }),
+
+  /** Per-instance HTTP timeout for /health (milliseconds). */
+  INSTANCE_HEALTH_TIMEOUT_MS: z
+    .string()
+    .optional()
+    .default("5000")
+    .transform((s) => {
+      const n = Number(s);
+      return Number.isFinite(n) && n > 0 ? n : 5000;
+    }),
 });
 
 export type WaveEnv = z.infer<typeof baseSchema>;

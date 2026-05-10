@@ -5,10 +5,13 @@ watch in lockstep with your friends — from the web (Google sign-in) or from
 inside Telegram (bot + Mini App). Both identities can be linked into a single
 account.
 
-> **Status:** Stage 1 of 5 — foundation. The repo currently contains the
-> monorepo layout, shared Mongoose models, web auth (Google OAuth + Telegram
-> Mini App `initData` verification), account linking, and a bot scaffold.
-> Streaming, rooms, and the admin panel arrive in subsequent stages.
+> **Status:** Stage 2 of 5 — streaming instance + master/instance plumbing.
+> On top of the Stage 1 foundation, the repo now ships:
+> a Go binary (`apps/instance`) that hosts on `:8080` and runs yt-dlp + ffmpeg
+> behind HMAC-authenticated `/info` and `/stream` endpoints; a typed instance
+> client and env-driven instance registration on the master node; and a
+> background `/health` probe loop. Rooms, sync, and the admin panel arrive
+> in Stages 3–4.
 
 ## Stack
 
@@ -17,7 +20,7 @@ account.
 - **Web:** Next.js 15 + React 19 + Tailwind 4 (`apps/web`)
 - **Bot:** [grammY](https://grammy.dev) + conversations plugin (`apps/bot`)
 - **Database:** MongoDB via Mongoose with `InferSchemaType` (shared schemas live in `packages/shared`)
-- **Streaming instance** (Stage 2): Go binary on `:8080` using `yt-dlp` + `ffmpeg`
+- **Streaming instance:** Go 1.23 binary on `:8080` running `yt-dlp` + `ffmpeg`
 
 ## Repo layout
 
@@ -79,7 +82,28 @@ Wave/
    BOT_USERNAME=wave_together_bot
    ```
 
-5. **Run the apps.** In two terminals:
+5. **(Optional) Run a local streaming instance.** The Stage 2 Go binary lives
+   at `apps/instance` and ships in a Docker image alongside `yt-dlp` and
+   `ffmpeg`.
+
+   ```bash
+   docker compose --profile instance up -d
+   ```
+
+   Then point the master at it via `INSTANCES_JSON` in `.env`:
+
+   ```env
+   INSTANCES_JSON=[{"name":"local","url":"http://localhost:8080","secret":"dev-instance-secret-change-me","isLocal":true}]
+   INSTANCE_LOCAL_SECRET=dev-instance-secret-change-me
+   ```
+
+   The master upserts that record on startup and pings `/health` every
+   `INSTANCE_HEALTH_INTERVAL_SECONDS`. Records added through the future admin
+   panel are never overwritten by this sync — see
+   [`packages/shared/src/instance-sync.ts`](./packages/shared/src/instance-sync.ts)
+   for the matching rules.
+
+6. **Run the apps.** In two terminals:
 
    ```bash
    bun run dev:web   # http://localhost:3000
@@ -102,6 +126,38 @@ Wave/
   onto the current Wave user, with conflict detection (`google_already_linked`
   / `telegram_already_linked`) when the identity is already on a different
   account.
+
+## Streaming instances (Stage 2)
+
+Each instance is a stateless Go process you can run on any host. The master
+node holds the cookie pool, picks a healthy instance for a room, and forwards
+`/info` and `/stream` calls to it — cookies are sent **in the request body**
+and are never persisted on the instance.
+
+| Endpoint | Auth | Purpose |
+| --- | --- | --- |
+| `GET /health` | none | Liveness + reported `yt-dlp` / `ffmpeg` versions + active stream count. |
+| `POST /info` | HMAC | Runs `yt-dlp --dump-single-json` and returns trimmed metadata + format list. |
+| `POST /stream` | HMAC | Pipes `yt-dlp` → `ffmpeg` (always remuxes to fragmented MP4) directly to the response body. |
+
+**Signing.** Every signed request carries:
+
+```
+X-Wave-Timestamp: <unix seconds>
+X-Wave-Signature: hex(hmac_sha256(timestamp + "." + body, instanceSecret))
+```
+
+The instance enforces a ±30s clock-drift window so captured signatures cannot
+be replayed indefinitely. Same algorithm is used by the master
+([`packages/shared/src/instance-client.ts`](./packages/shared/src/instance-client.ts))
+and the instance ([`apps/instance/internal/auth/hmac.go`](./apps/instance/internal/auth/hmac.go))
+and is pinned by parity tests in `packages/shared/test/`.
+
+**Cookies.** Sent as a JSON array on the request body matching the Chrome
+DevTools Protocol cookie shape (`name`, `value`, `domain`, `path`, `expires`,
+`secure`, `httpOnly`). The instance writes a 0600 Netscape file to the OS
+temp dir, hands it to `yt-dlp --cookies`, and `defer`-deletes it after the
+request — nothing about the cookie persists across requests.
 
 ## Schemas (Mongoose + InferSchemaType)
 
@@ -128,8 +184,8 @@ See [`.env.example`](./.env.example) for the full list. Required at minimum:
 
 | Stage | Scope |
 | --- | --- |
-| **1 — Foundation** *(this PR)* | Monorepo, schemas, auth, account linking, bot scaffold, MongoDB compose. |
-| 2 — Streaming instance | Go binary on `:8080`, yt-dlp + ffmpeg integration, info / stream / health endpoints. Cookies passed in request body. |
+| 1 — Foundation *(merged)* | Monorepo, schemas, auth, account linking, bot scaffold, MongoDB compose. |
+| **2 — Streaming instance** *(this PR)* | Go binary on `:8080`, yt-dlp + ffmpeg, HMAC `/info` and `/stream`, env-driven master sync, health probe loop. |
 | 3 — Watch party logic | Room creation, instance selection, chunked stream proxy, WebSocket sync (play / pause / seek / quality). |
 | 4 — Bot + admin | Required-subscription system, deep-link payload rooms, multi-cookie rotation pool, instance admin. |
-| 5 — Polish | Banned-cookie auto-rotation, instance health monitoring, README & deployment docs, observability. |
+| 5 — Polish | i18n (RU/EN with Accept-Language autodetect), banned-cookie auto-rotation, observability, deployment docs. |

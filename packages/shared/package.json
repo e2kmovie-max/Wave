@@ -9,7 +9,9 @@
     "./db": "./src/db.ts",
     "./env": "./src/env.ts",
     "./crypto": "./src/crypto.ts",
-    "./telegram": "./src/telegram.ts"
+    "./telegram": "./src/telegram.ts",
+    "./instance-client": "./src/instance-client.ts",
+    "./instance-sync": "./src/instance-sync.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",

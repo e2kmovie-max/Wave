@@ -30,9 +30,20 @@ const instanceSchema = new Schema(
     /** Shared HMAC secret used to authenticate master→instance requests. */
     secret: { type: String, required: true },
 
+    /**
+     * True when this record was created/updated by the master's startup sync of
+     * `INSTANCES_JSON`. Records flipped to false (admin-added entries) are
+     * never overwritten or removed by the env sync.
+     */
+    managedByEnv: { type: Boolean, default: false },
+
     isHealthy: { type: Boolean, default: false },
     lastHealthAt: { type: Date },
     lastHealthError: { type: String },
+
+    /** yt-dlp / ffmpeg versions reported by the last successful /health probe. */
+    toolsYtDlp: { type: String },
+    toolsFfmpeg: { type: String },
 
     /** Number of currently active stream sessions on this instance. */
     activeStreams: { type: Number, default: 0 },
