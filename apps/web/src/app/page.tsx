@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/card";
 import { isGoogleOAuthConfigured, isBotConfigured } from "@wave/shared";
 import { readSession } from "@/lib/session";
+import { checkAdmin } from "@/lib/admin-access";
 import { CreateRoomForm } from "./create-room-form";
 
 export const dynamic = "force-dynamic";
@@ -17,6 +18,8 @@ export default async function Home() {
   const session = await readSession();
   const googleReady = isGoogleOAuthConfigured();
   const botReady = isBotConfigured();
+  const adminCheck = session ? await checkAdmin() : { status: "unauthenticated" as const };
+  const isAdmin = adminCheck.status === "ok";
 
   return (
     <main className="mx-auto flex min-h-dvh max-w-5xl flex-col px-6 py-10">
@@ -30,6 +33,11 @@ export default async function Home() {
         <nav className="flex items-center gap-2">
           {session ? (
             <>
+              {isAdmin && (
+                <Link href="/admin">
+                  <Button variant="ghost" size="sm">Admin</Button>
+                </Link>
+              )}
               <Link href="/account">
                 <Button variant="ghost" size="sm">Account</Button>
               </Link>

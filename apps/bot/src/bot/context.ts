@@ -1,11 +1,19 @@
 import type { Context, SessionFlavor } from "grammy";
 import type { ConversationFlavor } from "@grammyjs/conversations";
-import type { UserDoc } from "@wave/shared";
+import type { I18nKey, Lang, UserDoc } from "@wave/shared";
 import type { HydratedDocument } from "mongoose";
 
+/**
+ * Action to resume after the user has cleared OP. Stored on the bot session
+ * because callback `data` is capped at 64 bytes and we want richer state.
+ */
+export type PendingAction =
+  | { kind: "create_room"; url: string }
+  | { kind: "open_room"; code: string };
+
 export interface SessionData {
-  /** Currently in-progress action key, used by future conversations. */
-  pending?: string;
+  /** Most recent action queued behind the OP gate, replayed after pass. */
+  pendingAction?: PendingAction;
 }
 
 /**
@@ -16,6 +24,8 @@ export interface SessionData {
 export interface WaveContextExtra {
   user?: HydratedDocument<UserDoc> | null;
   isAdmin: boolean;
+  lang: Lang;
+  t: (key: I18nKey, vars?: Record<string, string | number>) => string;
 }
 
 type BaseContext = Context & SessionFlavor<SessionData> & WaveContextExtra;

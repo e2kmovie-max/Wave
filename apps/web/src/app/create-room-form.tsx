@@ -20,9 +20,23 @@ export function CreateRoomForm() {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ url }),
       });
-      const data = (await res.json()) as { url?: string; error?: string };
+      const data = (await res.json()) as {
+        url?: string;
+        error?: string;
+        missing?: Array<{ chatId: string; title: string; inviteLink?: string }>;
+      };
       if (!res.ok || !data.url) {
-        setError(data.error ?? "Could not create room.");
+        if (data.error === "subscription_required" && data.missing?.length) {
+          const channels = data.missing
+            .map((m) => m.title || m.chatId)
+            .join(", ");
+          setError(
+            `Subscribe to the required channels first: ${channels}. ` +
+              `Then press “Create room” again.`,
+          );
+        } else {
+          setError(data.error ?? "Could not create room.");
+        }
         return;
       }
       router.push(data.url);

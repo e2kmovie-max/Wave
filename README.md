@@ -5,12 +5,14 @@ watch in lockstep with your friends — from the web (Google sign-in) or from
 inside Telegram (bot + Mini App). Both identities can be linked into a single
 account.
 
-> **Status:** Stage 3 of 5 — watch-party rooms and synchronized playback.
-> On top of the Stage 1–2 foundation, the repo now creates rooms from the web
-> or bot, auto-selects a healthy streaming instance, fetches video preview
-> metadata, proxies fragmented MP4 streams through the master node, and keeps
-> play / pause / seek / quality in sync over a WebSocket room channel. Admin
-> tooling and cookie-pool management arrive in Stage 4.
+> **Status:** Stage 4 of 5 — bot OP gate, admin panels, multi-account cookie
+> rotation, and instance management. On top of Stages 1–3, the bot now
+> blocks room creation behind a configurable set of required Telegram
+> channels, and admins manage required channels, the Google cookie pool, and
+> streaming instances both from a new `/admin` command in the bot and from
+> the new `/admin` pages in the web app. Bot strings live in a small RU/EN
+> table picked by `language_code`. Auto-rotation on bans/captchas and the
+> i18n polish for the web app arrive in Stage 5.
 
 ## Stack
 
@@ -197,6 +199,70 @@ All in `packages/shared/src/models`:
 | `GoogleAccount` | Pool of YouTube cookies (Netscape format, AES-256-GCM at rest). Rotation logic lands in Stage 4. |
 | `RequiredChannel` | Telegram channels users must join before creating/joining a room (admin-managed). |
 
+## Bot + admin panel (Stage 4)
+
+### Required-channel gate (OP — “обязательная подписка”)
+
+When the bot receives a video URL (or a deep-link `/start` payload), it
+checks `getChatMember` for every enabled `RequiredChannel`. If anything is
+missing, the bot:
+
+1. Stores the pending action (`create_room`/`open_room`) on the user's bot
+   session.
+2. Sends the subscription prompt with one button per channel + a
+   *“I subscribed — continue”* button (`op:continue`).
+3. On the next callback re-runs the check and either replays the pending
+   action or surfaces *“still missing”* via the callback answer.
+
+The same gate applies to web room creation **only when the signed-in user
+has a linked Telegram identity** — pure Google users have no way to
+subscribe and are never blocked. The web check uses the Telegram Bot HTTP
+API directly (no grammY instance needed), so it works inside Next.js route
+handlers.
+
+With an empty `RequiredChannel` collection the gate is a no-op for everyone.
+
+### Deep-link invites (`t.me/<bot>?start=<payload>`)
+
+When a room is created from inside the bot, a random `botPayload` is saved
+on the `Room`. The bot sends the invite link
+`https://t.me/<BOT_USERNAME>?start=<payload>`. Recipients who open that
+link and clear OP receive the room URL back from the bot.
+
+### `/admin` in the bot
+
+Users in `ADMIN_TELEGRAM_IDS` get an `/admin` command that opens a menu with
+three sub-panels:
+
+- **Required channels** — add (forward a channel post, paste `@username`,
+  paste a `-100…` chat-id), toggle enabled, delete.
+- **Google cookie pool** — paste a Netscape `cookies.txt` blob or a JSON
+  cookie array via a conversation. Records rotate LRU at stream time and
+  can be paused (`disable`) or removed.
+- **Streaming instances** — add admin-owned instances (`name`, base `url`,
+  `INSTANCE_SECRET`), enable/disable any record, delete admin-owned ones.
+  `INSTANCES_JSON`-managed records are flagged `env` and protected from
+  deletion.
+
+All admin text is rendered through the small RU/EN i18n table keyed by
+`ctx.from.language_code` (`ru*` → RU, anything else → EN).
+
+### `/admin` in the web app
+
+Admin web pages live under [`apps/web/src/app/admin`](./apps/web/src/app/admin)
+and are guarded by [`apps/web/src/lib/admin-access.ts`](./apps/web/src/lib/admin-access.ts).
+A user becomes an admin by one of:
+
+- having `isAdmin:true` on their Wave doc (e.g. an `ADMIN_TELEGRAM_IDS`
+  user who signed in to the bot at least once);
+- having their Google email listed in `ADMIN_GOOGLE_EMAILS`. On the first
+  visit to `/admin` from an env-listed email, `isAdmin` is sticky-set on
+  the doc so the env list only needs to seed admins.
+
+The pages are convenient for pasting large cookie blobs (textarea) and for
+at-a-glance lists with health flags; the bot panel is the quick-access
+path for the same data.
+
 ## Environment reference
 
 See [`.env.example`](./.env.example) for the full list. Required at minimum:
@@ -212,6 +278,6 @@ See [`.env.example`](./.env.example) for the full list. Required at minimum:
 | --- | --- |
 | 1 — Foundation *(merged)* | Monorepo, schemas, auth, account linking, bot scaffold, MongoDB compose. |
 | 2 — Streaming instance *(merged)* | Go binary on `:8080`, yt-dlp + ffmpeg, HMAC `/info` and `/stream`, env-driven master sync, health probe loop. |
-| **3 — Watch party logic** *(this PR)* | Room creation, instance selection, chunked stream proxy, WebSocket sync (play / pause / seek / quality). |
-| 4 — Bot + admin | Required-subscription system, deep-link payload rooms, multi-cookie rotation pool, instance admin. |
-| 5 — Polish | i18n (RU/EN with Accept-Language autodetect), banned-cookie auto-rotation, observability, deployment docs. |
+| 3 — Watch party logic *(merged)* | Room creation, instance selection, chunked stream proxy, WebSocket sync (play / pause / seek / quality). |
+| **4 — Bot + admin** *(this PR)* | OP-gate on required channels, bot deep-link invites, RU/EN bot strings, bot + web admin panels for channels / cookies / instances. |
+| 5 — Polish | Auto-rotation on bans/captchas, web i18n (Accept-Language), observability, deployment docs. |

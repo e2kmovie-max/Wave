@@ -1,5 +1,10 @@
 import { NextResponse } from "next/server";
-import { connectMongo, createWatchRoom, WatchPartyError } from "@wave/shared";
+import {
+  WatchPartyError,
+  checkTelegramSubscriptions,
+  connectMongo,
+  createWatchRoom,
+} from "@wave/shared";
 import { requireCurrentUser } from "@/lib/room-access";
 
 export const runtime = "nodejs";
@@ -17,8 +22,29 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "url_required" }, { status: 400 });
   }
 
+  await connectMongo();
+
+  // OP gate: only applies to web users who already have a Telegram identity
+  // attached. Pure-Google users are always allowed (they have no way to
+  // subscribe to a channel).
+  if (typeof user.telegramId === "number") {
+    const op = await checkTelegramSubscriptions(user.telegramId);
+    if (!op.passed) {
+      return NextResponse.json(
+        {
+          error: "subscription_required",
+          missing: op.missing,
+        },
+        { status: 403 },
+      );
+    }
+    // Sticky-bit the pass on the user doc so later UI can skip the wait.
+    user.hasPassedOp = true;
+    user.lastOpAt = new Date();
+    await user.save();
+  }
+
   try {
-    await connectMongo();
     const room = await createWatchRoom({
       ownerId: user._id,
       url: body.url,
