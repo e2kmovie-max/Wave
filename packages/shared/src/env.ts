@@ -33,6 +33,23 @@ const baseSchema = z.object({
     ),
 
   /**
+   * Comma-separated list of Google account emails that should have admin
+   * access to the web admin panel. Empty by default — the web admin is
+   * disabled in that case. Bot admins are configured separately via
+   * ADMIN_TELEGRAM_IDS.
+   */
+  ADMIN_GOOGLE_EMAILS: z
+    .string()
+    .optional()
+    .default("")
+    .transform((s) =>
+      s
+        .split(",")
+        .map((x) => x.trim().toLowerCase())
+        .filter(Boolean),
+    ),
+
+  /**
    * Optional JSON array of streaming instances to upsert into Mongo on master
    * startup. Each entry must have `name`, `url`, and `secret`; `isLocal` is
    * optional. Admin-added instances (those without `managedByEnv:true`) are

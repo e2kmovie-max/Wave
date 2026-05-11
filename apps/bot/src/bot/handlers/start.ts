@@ -1,6 +1,7 @@
 import { Composer } from "grammy";
-import { Room, User, getEnv } from "@wave/shared";
+import { Room, User } from "@wave/shared";
 import type { WaveContext } from "../context";
+import { gateBehindOp, openRoomForUser } from "./op";
 
 export const startHandler = new Composer<WaveContext>();
 
@@ -14,41 +15,21 @@ startHandler.command("start", async (ctx) => {
     );
     const room = await Room.findOne({ botPayload: payload, isClosed: false }).lean();
     if (room) {
-      const env = getEnv();
-      const url = `${env.PUBLIC_WEB_URL.replace(/\/$/, "")}/rooms/${room.code}`;
-      await ctx.reply(`Open this Wave room:\n${url}`);
+      const proceed = await gateBehindOp(ctx, { kind: "open_room", code: room.code });
+      if (!proceed) return;
+      await openRoomForUser(ctx, room.code);
       return;
     }
   }
 
-  const lines = [
-    `<b>Wave</b> — watch videos together.`,
-    "",
-    "Send me a YouTube link and I'll spin up a watch-room for you and your friends.",
-  ];
+  const lines = [ctx.t("start.greeting_title"), "", ctx.t("start.greeting_body")];
   if (payload) {
     lines.push("");
-    lines.push(
-      `You arrived with payload <code>${escapeHtml(payload)}</code>, but I could not find an active room for it.`,
-    );
+    lines.push(ctx.t("start.payload_no_room"));
   }
   if (ctx.isAdmin) {
     lines.push("");
-    lines.push("You're an admin. /admin will open the panel (stage 4).");
+    lines.push(ctx.t("start.admin_hint"));
   }
   await ctx.reply(lines.join("\n"), { parse_mode: "HTML" });
 });
-
-function escapeHtml(s: string): string {
-  return s.replace(/[&<>"']/g, (c) =>
-    c === "&"
-      ? "&amp;"
-      : c === "<"
-        ? "&lt;"
-        : c === ">"
-          ? "&gt;"
-          : c === '"'
-            ? "&quot;"
-            : "&#39;",
-  );
-}
