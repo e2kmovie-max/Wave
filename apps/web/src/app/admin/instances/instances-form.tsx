@@ -157,7 +157,10 @@ export function InstancesForm({ initial }: { initial: InstanceRecordView[] }) {
                     <code>{inst.url}</code>
                     {inst.toolsYtDlp ? ` · yt-dlp ${inst.toolsYtDlp}` : ""}
                     {inst.toolsFfmpeg ? ` · ffmpeg ${inst.toolsFfmpeg}` : ""}
-                    {inst.maxStreams ? ` · cap ${inst.activeStreams}/${inst.maxStreams}` : ""}
+                    {` · streams ${inst.activeStreams}${inst.maxStreams ? `/${inst.maxStreams}` : ""}`}
+                    {inst.consecutiveFailures > 0
+                      ? ` · failures: ${inst.consecutiveFailures}`
+                      : ""}
                   </p>
                   {!inst.isHealthy && inst.lastHealthError && (
                     <p className="truncate text-xs text-[var(--color-danger)]">

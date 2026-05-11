@@ -41,6 +41,15 @@ const instanceSchema = new Schema(
     lastHealthAt: { type: Date },
     lastHealthError: { type: String },
 
+    /**
+     * Number of consecutive failed health probes. Reset to 0 on the first
+     * successful probe. Surfaced in admin pages so operators can spot a
+     * flapping instance even when the latest probe happens to be green.
+     */
+    consecutiveFailures: { type: Number, default: 0 },
+    /** UNIX timestamp of the first failure in the current streak (for alerting). */
+    failingSince: { type: Date },
+
     /** yt-dlp / ffmpeg versions reported by the last successful /health probe. */
     toolsYtDlp: { type: String },
     toolsFfmpeg: { type: String },

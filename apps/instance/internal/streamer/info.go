@@ -3,6 +3,7 @@
 package streamer
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -35,18 +36,29 @@ func FetchInfo(ctx context.Context, opts InfoOptions) (*Info, error) {
 	args = append(args, "--", opts.URL)
 
 	cmd := exec.CommandContext(ctx, opts.YTDLPBinary, args...) //nolint:gosec // args are sanitized
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
 	out, err := cmd.Output()
 	if err != nil {
 		var ee *exec.ExitError
-		if errors.As(err, &ee) {
-			return nil, fmt.Errorf("yt-dlp exited %d: %s", ee.ExitCode(), string(ee.Stderr))
+		if errors.As(err, &ee) && len(ee.Stderr) > 0 {
+			// Older Go versions populate ee.Stderr only when Stderr is unset;
+			// we wrote it ourselves, so prefer our buffer when present.
+			if stderr.Len() == 0 {
+				stderr.Write(ee.Stderr)
+			}
 		}
-		return nil, fmt.Errorf("run yt-dlp: %w", err)
+		code, msg := ClassifyYtdlpError(err, stderr.String())
+		return nil, &PipelineError{Code: code, Message: msg, Wrapped: fmt.Errorf("yt-dlp: %w", err)}
 	}
 
 	var raw rawInfo
 	if err := json.Unmarshal(out, &raw); err != nil {
-		return nil, fmt.Errorf("parse yt-dlp json: %w", err)
+		return nil, &PipelineError{
+			Code:    ErrorCodeUnknown,
+			Message: "yt-dlp produced unparseable JSON",
+			Wrapped: fmt.Errorf("parse yt-dlp json: %w", err),
+		}
 	}
 
 	return raw.toInfo(), nil

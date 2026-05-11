@@ -1,7 +1,15 @@
 import { Types } from "mongoose";
 import { decrypt, randomCode } from "./crypto";
 import { GoogleAccount, Instance, Room } from "./models";
-import { InstanceClient, type InstanceCookie, type InstanceInfo } from "./instance-client";
+import {
+  InstanceClient,
+  InstanceError,
+  isRotatableInstanceErrorCode,
+  type InstanceCookie,
+  type InstanceInfo,
+} from "./instance-client";
+import { parseCookiePayload } from "./cookie-payload";
+import { markCookieAccountAutoDisabled } from "./cookie-pool";
 
 export interface RoomVideoFormat {
   formatId: string;
@@ -38,6 +46,22 @@ interface CookieAccountRecord {
   cookiesEncrypted: string;
   userAgent?: string;
 }
+
+export interface YtDlpCredentials {
+  /** Mongo `_id` of the GoogleAccount we picked, or null if no record matched. */
+  accountId: string | null;
+  /** Short human label of the picked record. */
+  label?: string;
+  cookies?: InstanceCookie[];
+  userAgent?: string;
+}
+
+/**
+ * Default cap on cookie-rotation retries per master call. Picked high enough
+ * to walk a small pool when several entries are stale, but low enough that an
+ * outage with broken cookies fails fast (rather than hammering the instance).
+ */
+export const MAX_COOKIE_ROTATIONS = 3;
 
 interface RoomStateRecord {
   currentTime?: number;
@@ -88,27 +112,106 @@ export async function selectStreamingInstance(): Promise<InstanceRecord> {
   return selected;
 }
 
-export async function loadYtDlpCredentials(): Promise<{
-  cookies?: InstanceCookie[];
-  userAgent?: string;
-}> {
+/**
+ * Pick the least-recently-used enabled cookie record and return its plaintext
+ * cookies + user-agent override, plus the account id so the caller can mark
+ * it auto-disabled on a rotatable upstream error.
+ *
+ * Pass `excludeIds` to skip records that have already failed during this call
+ * (the master rotation loop populates this with the previous attempt's id).
+ */
+export async function loadYtDlpCredentials(
+  options: { excludeIds?: ReadonlyArray<string | Types.ObjectId> } = {},
+): Promise<YtDlpCredentials> {
+  const excluded = (options.excludeIds ?? []).map((id) =>
+    id instanceof Types.ObjectId ? id : new Types.ObjectId(id),
+  );
+  const filter: Record<string, unknown> = { disabled: false };
+  if (excluded.length > 0) filter._id = { $nin: excluded };
+
   const account = await GoogleAccount.findOneAndUpdate(
-    { disabled: false },
+    filter,
     { $inc: { usageCount: 1 }, $set: { lastUsedAt: new Date() } },
     { sort: { lastUsedAt: 1, usageCount: 1, createdAt: 1 }, new: true },
-  ).lean<CookieAccountRecord | null>();
-  if (!account) return {};
+  ).lean<(CookieAccountRecord & { label?: string }) | null>();
+  if (!account) return { accountId: null };
 
   let cookies: InstanceCookie[];
   try {
     cookies = parseCookiePayload(decrypt(account.cookiesEncrypted));
   } catch (err) {
-    throw new WatchPartyError(`Configured YouTube cookies cannot be used: ${(err as Error).message}`, 500);
+    throw new WatchPartyError(
+      `Configured YouTube cookies cannot be used: ${(err as Error).message}`,
+      500,
+    );
   }
   return {
+    accountId: String(account._id),
+    label: account.label,
     cookies,
     userAgent: account.userAgent,
   };
+}
+
+/**
+ * Run an instance call (e.g. `/info`) under the cookie pool rotation policy.
+ *
+ * Behaviour:
+ *  - The first attempt uses whatever credentials `loadYtDlpCredentials()`
+ *    returns (may be empty if no records exist).
+ *  - On a rotatable `InstanceError`, the picked record is auto-disabled and
+ *    the call is retried with the next record, up to `MAX_COOKIE_ROTATIONS`
+ *    times. Records seen so far are excluded from the next pick.
+ *  - Non-rotatable errors are rethrown unchanged.
+ *  - Returns both the operation result and the credentials used on the
+ *    successful attempt so the caller can log which record served the call.
+ */
+export async function withCookieRotation<T>(
+  run: (credentials: YtDlpCredentials) => Promise<T>,
+  options: {
+    maxAttempts?: number;
+    /** Override the credential loader — used by tests. */
+    loader?: typeof loadYtDlpCredentials;
+    /** Override the auto-disable callback — used by tests. */
+    autoDisable?: (id: string, reason: string) => Promise<void>;
+    log?: Pick<Console, "warn" | "info">;
+  } = {},
+): Promise<{ value: T; credentials: YtDlpCredentials; attempts: number }> {
+  const maxAttempts = Math.max(1, options.maxAttempts ?? MAX_COOKIE_ROTATIONS);
+  const loader = options.loader ?? loadYtDlpCredentials;
+  const autoDisable = options.autoDisable ?? markCookieAccountAutoDisabled;
+  const log = options.log ?? console;
+
+  const excludeIds: string[] = [];
+  let lastErr: unknown;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    const credentials = await loader({ excludeIds });
+    try {
+      const value = await run(credentials);
+      return { value, credentials, attempts: attempt };
+    } catch (err) {
+      lastErr = err;
+      if (
+        err instanceof InstanceError &&
+        isRotatableInstanceErrorCode(err.errorCode) &&
+        credentials.accountId
+      ) {
+        log.warn(
+          `[wave] cookie pool: auto-disabling "${credentials.label ?? credentials.accountId}" after ${err.errorCode} (attempt ${attempt}/${maxAttempts})`,
+        );
+        await autoDisable(credentials.accountId, err.errorCode).catch((disableErr: unknown) => {
+          log.warn(`[wave] cookie pool: auto-disable bookkeeping failed:`, disableErr);
+        });
+        excludeIds.push(credentials.accountId);
+        continue;
+      }
+      throw err;
+    }
+  }
+  if (lastErr) throw lastErr;
+  // Shouldn't happen — the loop always either returns or throws.
+  throw new WatchPartyError("Cookie rotation exhausted unexpectedly.", 500);
 }
 
 export async function previewVideo(urlInput: string): Promise<{
@@ -118,16 +221,21 @@ export async function previewVideo(urlInput: string): Promise<{
   formats: RoomVideoFormat[];
   selectedFormatId: string;
   quality: string;
+  cookieAccountId: string | null;
+  cookieRotations: number;
 }> {
   const url = normalizeVideoUrl(urlInput);
   const instance = await selectStreamingInstance();
-  const credentials = await loadYtDlpCredentials();
   const client = new InstanceClient({ url: instance.url, secret: instance.secret });
-  const info = await client.info({
-    url,
-    cookies: credentials.cookies,
-    userAgent: credentials.userAgent,
-  });
+
+  const { value: info, credentials, attempts } = await withCookieRotation((creds) =>
+    client.info({
+      url,
+      cookies: creds.cookies,
+      userAgent: creds.userAgent,
+    }),
+  );
+
   const formats = buildRoomFormats(info);
   const first = formats[0];
   if (!first) {
@@ -140,6 +248,8 @@ export async function previewVideo(urlInput: string): Promise<{
     formats,
     selectedFormatId: first.formatId,
     quality: first.label,
+    cookieAccountId: credentials.accountId,
+    cookieRotations: attempts - 1,
   };
 }
 
@@ -229,70 +339,8 @@ export function makeRoomState(room: RoomStateRecord): RoomSyncState {
   };
 }
 
-function parseCookiePayload(payload: string): InstanceCookie[] {
-  const trimmed = payload.trim();
-  if (trimmed === "") return [];
-  if (trimmed.startsWith("[")) {
-    const parsed: unknown = JSON.parse(trimmed);
-    if (!Array.isArray(parsed)) throw new Error("cookie JSON must be an array");
-    return parsed.map(parseJsonCookie);
-  }
-  return parseNetscapeCookies(trimmed);
-}
-
-function parseJsonCookie(value: unknown): InstanceCookie {
-  if (!isRecord(value)) throw new Error("cookie must be an object");
-  const name = asString(value.name);
-  const cookieValue = asString(value.value);
-  const domain = asString(value.domain);
-  if (!name || !domain) throw new Error("cookie requires name and domain");
-  const expires = typeof value.expires === "number" ? value.expires : undefined;
-  return {
-    name,
-    value: cookieValue,
-    domain,
-    path: typeof value.path === "string" ? value.path : "/",
-    expires,
-    secure: typeof value.secure === "boolean" ? value.secure : undefined,
-    httpOnly: typeof value.httpOnly === "boolean" ? value.httpOnly : undefined,
-  };
-}
-
-function parseNetscapeCookies(payload: string): InstanceCookie[] {
-  const cookies: InstanceCookie[] = [];
-  for (const rawLine of payload.split(/\r?\n/)) {
-    const line = rawLine.trim();
-    if (!line || (line.startsWith("#") && !line.startsWith("#HttpOnly_"))) continue;
-    const httpOnly = line.startsWith("#HttpOnly_");
-    const normalized = httpOnly ? line.replace(/^#HttpOnly_/, "") : line;
-    const parts = normalized.split("\t");
-    if (parts.length < 7) continue;
-    const [domain, , path, secureRaw, expiresRaw, name, ...valueParts] = parts;
-    if (!domain || !name) continue;
-    const expires = Number(expiresRaw);
-    cookies.push({
-      domain,
-      path: path || "/",
-      secure: secureRaw?.toUpperCase() === "TRUE",
-      expires: Number.isFinite(expires) ? expires : undefined,
-      name,
-      value: valueParts.join("\t"),
-      httpOnly,
-    });
-  }
-  return cookies;
-}
-
-function asString(value: unknown): string {
-  return typeof value === "string" ? value : "";
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
 function isDuplicateKeyError(err: unknown): boolean {
-  return isRecord(err) && err.code === 11000;
+  return typeof err === "object" && err !== null && (err as { code?: unknown }).code === 11000;
 }
 
 export const __watchPartyTest__ = {

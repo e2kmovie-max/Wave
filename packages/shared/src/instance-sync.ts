@@ -154,21 +154,22 @@ export function startInstanceHealthLoop(opts: HealthLoopOptions): () => void {
  * for tests + manual diagnostics; production calls it through the loop.
  */
 export async function pingInstance(doc: InstanceDoc, timeoutMs: number): Promise<void> {
+  const id = (doc as unknown as { _id: unknown })._id;
   const client = new InstanceClient({ url: doc.url, secret: doc.secret });
   try {
     const h = await client.health({ timeoutMs });
     await Instance.updateOne(
-      { _id: (doc as unknown as { _id: unknown })._id },
+      { _id: id },
       {
         $set: {
           isHealthy: Boolean(h.ok),
           lastHealthAt: new Date(),
-          lastHealthError: undefined,
           activeStreams: h.activeStreams ?? 0,
           toolsYtDlp: h.tools?.ytDlp ?? undefined,
           toolsFfmpeg: h.tools?.ffmpeg ?? undefined,
+          consecutiveFailures: 0,
         },
-        $unset: { lastHealthError: "" },
+        $unset: { lastHealthError: "", failingSince: "" },
       },
     );
   } catch (err) {
@@ -176,15 +177,95 @@ export async function pingInstance(doc: InstanceDoc, timeoutMs: number): Promise
       err instanceof InstanceError
         ? `${err.message} (status=${err.status})`
         : (err as Error).message;
-    await Instance.updateOne(
-      { _id: (doc as unknown as { _id: unknown })._id },
+    // We want to know how many consecutive failures we have so the admin UI
+    // can surface it. Use findOneAndUpdate with $inc + $setOnInsert-style
+    // bookkeeping for failingSince.
+    const fresh = await Instance.findOneAndUpdate(
+      { _id: id },
       {
         $set: {
           isHealthy: false,
           lastHealthAt: new Date(),
           lastHealthError: message,
         },
+        $inc: { consecutiveFailures: 1 },
       },
+      { new: true },
     );
+    if (fresh && !fresh.failingSince) {
+      await Instance.updateOne(
+        { _id: id },
+        { $set: { failingSince: new Date() } },
+      );
+    }
   }
+}
+
+/**
+ * Summary of all known streaming instances, suitable for serving from
+ * `/api/admin/health` or feeding a Prometheus textfile collector.
+ */
+export interface HealthSummary {
+  total: number;
+  enabled: number;
+  healthy: number;
+  failing: number;
+  /** Total active streams across the pool. */
+  activeStreams: number;
+  /** Per-instance breakdown, sorted enabled/healthy first. */
+  instances: Array<{
+    id: string;
+    name: string;
+    url: string;
+    isLocal: boolean;
+    enabled: boolean;
+    isHealthy: boolean;
+    managedByEnv: boolean;
+    consecutiveFailures: number;
+    failingSince?: string;
+    lastHealthAt?: string;
+    lastHealthError?: string;
+    toolsYtDlp?: string;
+    toolsFfmpeg?: string;
+    activeStreams: number;
+    maxStreams: number;
+  }>;
+}
+
+export async function collectInstanceHealth(): Promise<HealthSummary> {
+  const docs = await Instance.find()
+    .sort({ enabled: -1, isHealthy: -1, name: 1 })
+    .lean<Array<InstanceDoc & { _id: { toString(): string } }>>();
+  const summary: HealthSummary = {
+    total: docs.length,
+    enabled: 0,
+    healthy: 0,
+    failing: 0,
+    activeStreams: 0,
+    instances: [],
+  };
+  for (const doc of docs) {
+    if (doc.enabled) summary.enabled += 1;
+    if (doc.isHealthy) summary.healthy += 1;
+    else if (doc.enabled) summary.failing += 1;
+    summary.activeStreams += doc.activeStreams ?? 0;
+    summary.instances.push({
+      id: String(doc._id),
+      name: doc.name,
+      url: doc.url,
+      isLocal: Boolean(doc.isLocal),
+      enabled: Boolean(doc.enabled),
+      isHealthy: Boolean(doc.isHealthy),
+      managedByEnv: Boolean(doc.managedByEnv),
+      consecutiveFailures: doc.consecutiveFailures ?? 0,
+      failingSince: doc.failingSince ? doc.failingSince.toISOString() : undefined,
+      lastHealthAt: doc.lastHealthAt ? doc.lastHealthAt.toISOString() : undefined,
+      lastHealthError: doc.lastHealthError || undefined,
+      toolsYtDlp: doc.toolsYtDlp || undefined,
+      toolsFfmpeg: doc.toolsFfmpeg || undefined,
+      activeStreams: doc.activeStreams ?? 0,
+      maxStreams: doc.maxStreams ?? 0,
+    });
+  }
+  return summary;
 }

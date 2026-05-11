@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
+import { getCurrentLang } from "@/lib/i18n";
 
 export const metadata: Metadata = {
   title: "Wave — watch videos together",
@@ -14,11 +15,12 @@ export const viewport: Viewport = {
   maximumScale: 1,
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
+  const lang = await getCurrentLang();
   return (
-    <html lang="en">
+    <html lang={lang}>
       <body className="font-sans antialiased">{children}</body>
     </html>
   );

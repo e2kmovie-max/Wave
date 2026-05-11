@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { isGoogleOAuthConfigured, isBotConfigured, getEnv } from "@wave/shared";
 import { Button } from "@/components/ui/button";
+import { getTranslator } from "@/lib/i18n";
 import {
   Card,
   CardContent,
@@ -31,39 +32,53 @@ export default async function LoginPage({
   const botReady = isBotConfigured(env);
   const next = params.next?.startsWith("/") ? params.next : "/";
   const error = params.error;
+  const { lang, t } = await getTranslator();
+  const errorMessagesLocalized: Record<string, string> =
+    lang === "ru"
+      ? {
+          google_disabled: "Вход через Google отключён (нужны GOOGLE_CLIENT_ID / SECRET).",
+          invalid_state: "Сессия авторизации истекла — попробуйте снова.",
+          oauth_failed: "Google отклонил вход. Попробуйте ещё раз.",
+          missing_code: "Google не вернул authorization code.",
+          session_expired: "Сессия истекла. Войдите снова.",
+          access_denied: "Вы отменили вход через Google.",
+        }
+      : ERROR_MESSAGES;
 
   return (
     <main className="mx-auto flex min-h-dvh max-w-md flex-col items-center justify-center px-6 py-10">
       <Card className="w-full">
         <CardHeader>
-          <CardTitle>Sign in to Wave</CardTitle>
-          <CardDescription>
-            Pick how you want to get in. You can link the other identity from your
-            account page later.
-          </CardDescription>
+          <CardTitle>{t("web.login.title")}</CardTitle>
+          <CardDescription>{t("web.login.lead")}</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-3">
           {error && (
             <p className="rounded-md border border-[var(--color-danger)]/40 bg-[var(--color-danger)]/10 p-3 text-sm text-[var(--color-danger)]">
-              {ERROR_MESSAGES[error] ?? `Error: ${error}`}
+              {errorMessagesLocalized[error] ?? `Error: ${error}`}
             </p>
           )}
 
           {googleReady ? (
             <a href={`/api/auth/google/start?next=${encodeURIComponent(next)}`}>
               <Button size="lg" className="w-full">
-                Continue with Google
+                {t("web.login.google")}
               </Button>
             </a>
           ) : (
-            <Button size="lg" className="w-full" disabled title="Set GOOGLE_CLIENT_ID/SECRET in .env">
-              Continue with Google (not configured)
+            <Button
+              size="lg"
+              className="w-full"
+              disabled
+              title="Set GOOGLE_CLIENT_ID/SECRET in .env"
+            >
+              {t("web.login.error_google_unconfigured")}
             </Button>
           )}
 
           <div className="my-1 flex items-center gap-3 text-xs text-[var(--color-muted)]">
             <span className="h-px flex-1 bg-[var(--color-border)]" />
-            or
+            {lang === "ru" ? "или" : "or"}
             <span className="h-px flex-1 bg-[var(--color-border)]" />
           </div>
 
@@ -74,12 +89,12 @@ export default async function LoginPage({
               rel="noreferrer"
             >
               <Button size="lg" variant="secondary" className="w-full">
-                Open the Telegram bot
+                {t("web.login.telegram")}
               </Button>
             </a>
           ) : (
             <Button size="lg" variant="secondary" className="w-full" disabled>
-              Telegram bot (not configured)
+              {t("web.login.error_bot_unconfigured")}
             </Button>
           )}
 

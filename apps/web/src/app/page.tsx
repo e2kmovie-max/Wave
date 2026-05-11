@@ -10,6 +10,8 @@ import {
 import { isGoogleOAuthConfigured, isBotConfigured } from "@wave/shared";
 import { readSession } from "@/lib/session";
 import { checkAdmin } from "@/lib/admin-access";
+import { getTranslator } from "@/lib/i18n";
+import { LangSwitcher } from "@/components/lang-switcher";
 import { CreateRoomForm } from "./create-room-form";
 
 export const dynamic = "force-dynamic";
@@ -20,6 +22,7 @@ export default async function Home() {
   const botReady = isBotConfigured();
   const adminCheck = session ? await checkAdmin() : { status: "unauthenticated" as const };
   const isAdmin = adminCheck.status === "ok";
+  const { lang, t } = await getTranslator();
 
   return (
     <main className="mx-auto flex min-h-dvh max-w-5xl flex-col px-6 py-10">
@@ -28,28 +31,29 @@ export default async function Home() {
           <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-[var(--color-accent)] text-[var(--color-accent-fg)] font-black">
             W
           </span>
-          <span className="text-lg font-semibold tracking-tight">Wave</span>
+          <span className="text-lg font-semibold tracking-tight">{t("web.brand")}</span>
         </Link>
         <nav className="flex items-center gap-2">
+          <LangSwitcher current={lang} />
           {session ? (
             <>
               {isAdmin && (
                 <Link href="/admin">
-                  <Button variant="ghost" size="sm">Admin</Button>
+                  <Button variant="ghost" size="sm">{t("web.nav.admin")}</Button>
                 </Link>
               )}
               <Link href="/account">
-                <Button variant="ghost" size="sm">Account</Button>
+                <Button variant="ghost" size="sm">{t("web.nav.account")}</Button>
               </Link>
               <form action="/api/auth/logout" method="post">
                 <Button variant="secondary" size="sm" type="submit">
-                  Sign out
+                  {t("web.nav.sign_out")}
                 </Button>
               </form>
             </>
           ) : (
             <Link href="/login">
-              <Button size="sm">Sign in</Button>
+              <Button size="sm">{t("web.nav.sign_in")}</Button>
             </Link>
           )}
         </nav>
@@ -57,26 +61,35 @@ export default async function Home() {
 
       <section className="flex flex-1 flex-col items-center justify-center gap-8 py-20 text-center">
         <h1 className="text-balance text-5xl font-bold leading-[1.05] tracking-tight md:text-6xl">
-          Watch videos together,
+          {t("web.home.title")}
           <br />
           <span className="bg-gradient-to-r from-[var(--color-accent)] to-pink-300 bg-clip-text text-transparent">
-            in perfect sync.
+            {t("web.home.title_emph")}
           </span>
         </h1>
         <p className="max-w-2xl text-balance text-lg text-[var(--color-muted)]">
-          Drop in a YouTube link, share a room code, and Wave streams the video
-          in lockstep with everyone in the party. Sign in with Google on the
-          web or open Wave inside Telegram — your accounts can be linked.
+          {t("web.home.lead")}
         </p>
         {session ? (
-          <CreateRoomForm />
+          <CreateRoomForm
+            strings={{
+              placeholder: t("web.home.form_label"),
+              submit: t("web.home.form_submit"),
+              loading: t("web.home.creating"),
+              invalid: t("web.home.form_invalid"),
+              subscriptionRequired:
+                lang === "ru"
+                  ? "Сначала подпишитесь на обязательные каналы: {channels}. Затем нажмите «Создать комнату» ещё раз."
+                  : "Subscribe to the required channels first: {channels}. Then press “Create room” again.",
+            }}
+          />
         ) : (
           <div className="flex flex-wrap items-center justify-center gap-3">
             <Link href="/login">
-              <Button size="lg">Get started</Button>
+              <Button size="lg">{t("web.home.cta_sign_in")}</Button>
             </Link>
             <a href="https://github.com/e2kmovie-max/Wave" target="_blank" rel="noreferrer">
-              <Button variant="secondary" size="lg">View on GitHub</Button>
+              <Button variant="secondary" size="lg">GitHub</Button>
             </a>
           </div>
         )}

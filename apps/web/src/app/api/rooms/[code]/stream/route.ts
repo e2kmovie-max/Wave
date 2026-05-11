@@ -4,9 +4,9 @@ import {
   Instance,
   InstanceClient,
   InstanceError,
-  loadYtDlpCredentials,
   Room,
   WatchPartyError,
+  withCookieRotation,
 } from "@wave/shared";
 import { requireCurrentUser } from "@/lib/room-access";
 
@@ -41,22 +41,32 @@ export async function GET(
     new URL(request.url).searchParams.get("format") ?? room.selectedFormatId ?? undefined;
 
   try {
-    const credentials = await loadYtDlpCredentials();
     const client = new InstanceClient({ url: instance.url, secret: instance.secret });
-    const upstream = await client.stream(
-      {
-        url: room.videoUrl,
-        formatId,
-        cookies: credentials.cookies,
-        userAgent: credentials.userAgent,
-      },
-      { signal: request.signal },
-    );
-    if (!upstream.ok || !upstream.body) {
-      const text = await upstream.text();
-      return new NextResponse(text || "stream failed", {
-        status: upstream.status || 502,
-      });
+    const { value: upstream } = await withCookieRotation(async (creds) => {
+      const res = await client.stream(
+        {
+          url: room.videoUrl,
+          formatId,
+          cookies: creds.cookies,
+          userAgent: creds.userAgent,
+        },
+        { signal: request.signal },
+      );
+      if (!res.ok) {
+        // The instance writes a JSON error body when it can detect failure
+        // before any bytes have been flushed. Surface that as an InstanceError
+        // so the rotation wrapper can decide whether to retry.
+        const text = await res.text();
+        throw new InstanceError(
+          deriveErrorMessage(text, `stream returned ${res.status}`),
+          res.status,
+          text,
+        );
+      }
+      return res;
+    });
+    if (!upstream.body) {
+      return new NextResponse("stream had no body", { status: 502 });
     }
     return new NextResponse(upstream.body, {
       status: 200,
@@ -72,4 +82,21 @@ export async function GET(
     console.error("[wave] stream proxy failed:", err);
     return NextResponse.json({ error: "stream_proxy_failed" }, { status: 502 });
   }
+}
+
+function deriveErrorMessage(body: string, fallback: string): string {
+  try {
+    const parsed: unknown = JSON.parse(body);
+    if (
+      typeof parsed === "object" &&
+      parsed !== null &&
+      typeof (parsed as { error?: unknown }).error === "string" &&
+      (parsed as { error: string }).error.trim() !== ""
+    ) {
+      return (parsed as { error: string }).error;
+    }
+  } catch {
+    // body is plain text — fall through
+  }
+  return fallback;
 }

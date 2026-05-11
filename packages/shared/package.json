@@ -12,7 +12,8 @@
     "./telegram": "./src/telegram.ts",
     "./instance-client": "./src/instance-client.ts",
     "./instance-sync": "./src/instance-sync.ts",
-    "./watch-party": "./src/watch-party.ts"
+    "./watch-party": "./src/watch-party.ts",
+    "./i18n": "./src/i18n.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
