@@ -25,6 +25,16 @@ const videoFormatSchema = new Schema(
   { _id: false },
 );
 
+const chatMessageSchema = new Schema(
+  {
+    userId: { type: Schema.Types.ObjectId, ref: "User", required: true },
+    name: { type: String, required: true },
+    text: { type: String, required: true },
+    createdAt: { type: Date, default: () => new Date() },
+  },
+  { _id: true },
+);
+
 const roomSchema = new Schema(
   {
     /** Short, shareable, URL-safe code (e.g. "K9F2R7BP"). Unique. */
@@ -47,9 +57,11 @@ const roomSchema = new Schema(
 
     currentTime: { type: Number, default: 0 },
     isPlaying: { type: Boolean, default: false },
+    playbackRate: { type: Number, default: 1 },
     lastSyncAt: { type: Date, default: () => new Date() },
 
     participants: { type: [participantSchema], default: [] },
+    chatMessages: { type: [chatMessageSchema], default: [] },
 
     /** Where the room was created from. */
     source: { type: String, enum: ["web", "bot"], required: true, default: "web" },

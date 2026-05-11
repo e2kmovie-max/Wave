@@ -2,7 +2,8 @@ import { createServer } from "node:http";
 import type { IncomingMessage } from "node:http";
 import next from "next";
 import { WebSocket, WebSocketServer, type RawData } from "ws";
-import { connectMongo, makeRoomState, Room } from "@wave/shared";
+import { Types } from "mongoose";
+import { connectMongo, makeRoomState, Room, User } from "@wave/shared";
 
 const dev = process.env.NODE_ENV !== "production";
 const hostname = process.env.HOSTNAME ?? "0.0.0.0";
@@ -11,11 +12,22 @@ const app = next({ dev, hostname, port });
 const handle = app.getRequestHandler();
 const rooms = new Map<string, Set<WebSocket>>();
 
+interface ChatUser {
+  googleName?: string | null;
+  googleEmail?: string | null;
+  telegramUsername?: string | null;
+  telegramFirstName?: string | null;
+  guestName?: string | null;
+}
+
 interface SyncEvent {
-  type: "play" | "pause" | "seek" | "quality" | "hello";
+  type: "play" | "pause" | "seek" | "quality" | "speed" | "chat" | "hello";
   currentTime?: number;
+  playbackRate?: number;
   selectedFormatId?: string;
   quality?: string;
+  text?: string;
+  userId?: string;
 }
 
 await app.prepare();
@@ -90,12 +102,16 @@ async function handleMessage(code: string, sender: WebSocket, raw: string) {
     sender.send(JSON.stringify({ type: "error", error: "invalid_json" }));
     return;
   }
-  if (!["play", "pause", "seek", "quality", "hello"].includes(event.type)) {
+  if (!["play", "pause", "seek", "quality", "speed", "chat", "hello"].includes(event.type)) {
     sender.send(JSON.stringify({ type: "error", error: "invalid_event" }));
     return;
   }
   if (event.type === "hello") {
     await sendInitialState(code, sender);
+    return;
+  }
+  if (event.type === "chat") {
+    await handleChatMessage(code, sender, event);
     return;
   }
 
@@ -106,6 +122,13 @@ async function handleMessage(code: string, sender: WebSocket, raw: string) {
   if (event.type === "play") update.isPlaying = true;
   if (event.type === "pause" || event.type === "seek" || event.type === "quality") {
     update.isPlaying = event.type === "quality" ? undefined : false;
+  }
+  if (
+    event.type === "speed" &&
+    typeof event.playbackRate === "number" &&
+    Number.isFinite(event.playbackRate)
+  ) {
+    update.playbackRate = clampPlaybackRate(event.playbackRate);
   }
   if (event.type === "quality" && event.selectedFormatId) {
     update.selectedFormatId = event.selectedFormatId;
@@ -129,6 +152,57 @@ async function handleMessage(code: string, sender: WebSocket, raw: string) {
   });
 }
 
+async function handleChatMessage(code: string, sender: WebSocket, event: SyncEvent) {
+  const text = sanitizeChatText(event.text);
+  if (!text) {
+    sender.send(JSON.stringify({ type: "error", error: "empty_chat" }));
+    return;
+  }
+  await connectMongo();
+  const user =
+    event.userId && Types.ObjectId.isValid(event.userId)
+      ? await User.findById(event.userId).lean<ChatUser & { _id: Types.ObjectId }>()
+      : null;
+  if (!user) {
+    sender.send(JSON.stringify({ type: "error", error: "user_not_found" }));
+    return;
+  }
+  const message = {
+    userId: user._id,
+    name: displayName(user),
+    text,
+    createdAt: new Date(),
+  };
+  const room = await Room.findOneAndUpdate(
+    { code, isClosed: false },
+    {
+      $push: {
+        chatMessages: {
+          $each: [message],
+          $slice: -100,
+        },
+      },
+    },
+    { new: true },
+  ).lean();
+  if (!room) {
+    sender.send(JSON.stringify({ type: "error", error: "room_not_found" }));
+    return;
+  }
+  const saved = room.chatMessages.at(-1);
+  broadcast(code, {
+    type: "chat",
+    message: saved
+      ? {
+          id: String(saved._id),
+          name: saved.name,
+          text: saved.text,
+          createdAt: saved.createdAt.toISOString(),
+        }
+      : { name: message.name, text: message.text, createdAt: message.createdAt.toISOString() },
+  });
+}
+
 function broadcast(code: string, payload: unknown) {
   const set = rooms.get(code);
   if (!set) return;
@@ -140,4 +214,23 @@ function broadcast(code: string, payload: unknown) {
 
 function stripUndefined(input: Record<string, unknown>): Record<string, unknown> {
   return Object.fromEntries(Object.entries(input).filter(([, value]) => value !== undefined));
+}
+
+function clampPlaybackRate(rate: number): number {
+  return Math.min(2, Math.max(0.25, rate));
+}
+
+function sanitizeChatText(text: string | undefined): string {
+  return (text ?? "").trim().replace(/\s+/g, " ").slice(0, 280);
+}
+
+function displayName(record: ChatUser): string {
+  return (
+    record.googleName ??
+    record.telegramUsername ??
+    record.telegramFirstName ??
+    record.guestName ??
+    record.googleEmail ??
+    "Guest"
+  );
 }

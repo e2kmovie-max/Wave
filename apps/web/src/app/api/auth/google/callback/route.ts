@@ -43,6 +43,7 @@ export async function GET(req: NextRequest) {
     googleEmail: profile.email,
     googleName: profile.name,
     googleAvatar: profile.picture,
+    isGuest: false,
   };
 
   let userId: string;
