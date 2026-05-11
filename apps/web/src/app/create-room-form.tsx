@@ -4,7 +4,22 @@ import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 
-export function CreateRoomForm() {
+export interface CreateRoomFormStrings {
+  placeholder: string;
+  submit: string;
+  loading: string;
+  invalid: string;
+  subscriptionRequired: string;
+}
+
+export function CreateRoomForm({ strings }: { strings?: CreateRoomFormStrings } = {}) {
+  const s = strings ?? {
+    placeholder: "Paste YouTube / video URL",
+    submit: "Create room",
+    loading: "Preparing…",
+    invalid: "Could not create room.",
+    subscriptionRequired: "Subscribe to the required channels first: {channels}. Then press “Create room” again.",
+  };
   const router = useRouter();
   const [url, setUrl] = useState("");
   const [loading, setLoading] = useState(false);
@@ -30,12 +45,9 @@ export function CreateRoomForm() {
           const channels = data.missing
             .map((m) => m.title || m.chatId)
             .join(", ");
-          setError(
-            `Subscribe to the required channels first: ${channels}. ` +
-              `Then press “Create room” again.`,
-          );
+          setError(s.subscriptionRequired.replace("{channels}", channels));
         } else {
-          setError(data.error ?? "Could not create room.");
+          setError(data.error ?? s.invalid);
         }
         return;
       }
@@ -54,13 +66,13 @@ export function CreateRoomForm() {
     >
       <input
         className="min-h-12 flex-1 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] px-4 text-sm outline-none transition focus:border-[var(--color-accent)]"
-        placeholder="Paste YouTube / video URL"
+        placeholder={s.placeholder}
         value={url}
         onChange={(event) => setUrl(event.target.value)}
         disabled={loading}
       />
       <Button size="lg" type="submit" disabled={loading || !url.trim()}>
-        {loading ? "Preparing…" : "Create room"}
+        {loading ? s.loading : s.submit}
       </Button>
       {error && <p className="text-sm text-[var(--color-danger)] md:basis-full">{error}</p>}
     </form>

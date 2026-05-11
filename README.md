@@ -5,14 +5,28 @@ watch in lockstep with your friends — from the web (Google sign-in) or from
 inside Telegram (bot + Mini App). Both identities can be linked into a single
 account.
 
-> **Status:** Stage 4 of 5 — bot OP gate, admin panels, multi-account cookie
-> rotation, and instance management. On top of Stages 1–3, the bot now
-> blocks room creation behind a configurable set of required Telegram
-> channels, and admins manage required channels, the Google cookie pool, and
-> streaming instances both from a new `/admin` command in the bot and from
-> the new `/admin` pages in the web app. Bot strings live in a small RU/EN
-> table picked by `language_code`. Auto-rotation on bans/captchas and the
-> i18n polish for the web app arrive in Stage 5.
+> **Status:** Stage 5 of 5 (polish). On top of Stages 1–4, Stage 5 adds:
+> - **Cookie auto-rotation** — yt-dlp errors are classified server-side
+>   (`bot_detected` / `captcha` / `login_required` / `forbidden` / `rate_limited`
+>   / `unavailable` / `network`). The master retries with the next LRU
+>   Google account on any rotatable code and marks the offending account
+>   `autoDisabled` with the reason and a bumped `rotationCount`. Admins can
+>   re-enable the account from `/admin/cookies` without losing the counters.
+> - **Instance health monitoring** — every healthy/unhealthy probe writes
+>   `consecutiveFailures` and `failingSince`, both surfaced in
+>   `/admin/instances`. The first successful probe resets the streak.
+> - **Health JSON endpoints** — `GET /api/health` for liveness (Mongo ping)
+>   and admin-only `GET /api/admin/health` for an aggregated pool/cookie
+>   report suitable for uptime monitoring.
+> - **Web i18n** — Next.js detects RU/EN from `Accept-Language` plus a
+>   `wave_lang` cookie. A header switcher posts to `/api/lang` to flip
+>   languages without JavaScript. The string table lives next to the bot's
+>   strings in `packages/shared/src/i18n.ts` so adding a third language is
+>   one PR.
+> - **Deployment guide** — see [`DEPLOYMENT.md`](./DEPLOYMENT.md) for
+>   single-host Docker Compose, bare-metal systemd, and multi-host
+>   master+workers layouts. Sample nginx config and systemd units live in
+>   [`deploy/`](./deploy/).
 
 ## Stack
 

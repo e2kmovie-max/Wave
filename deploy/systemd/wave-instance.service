@@ -1,0 +1,22 @@
+[Unit]
+Description=Wave streaming instance (Go binary; yt-dlp + ffmpeg)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=wave
+Group=wave
+WorkingDirectory=/opt/wave/apps/instance
+EnvironmentFile=/etc/wave/environment
+# Build with `cd apps/instance && go build -o /usr/local/bin/wave-instance ./cmd/instance`
+ExecStart=/usr/local/bin/wave-instance
+Restart=on-failure
+RestartSec=5s
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

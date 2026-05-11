@@ -134,9 +134,19 @@ export function CookiesForm({ initial }: { initial: CookieRecordView[] }) {
                 <div className="min-w-0 flex-1">
                   <p className="truncate font-medium">
                     {cookie.label}
-                    {cookie.disabled && (
+                    {cookie.disabled && cookie.autoDisabled && (
+                      <span className="ml-2 rounded bg-[var(--color-danger)]/20 px-2 py-0.5 text-xs text-[var(--color-danger)]">
+                        auto-disabled
+                      </span>
+                    )}
+                    {cookie.disabled && !cookie.autoDisabled && (
                       <span className="ml-2 rounded bg-[var(--color-danger)]/20 px-2 py-0.5 text-xs text-[var(--color-danger)]">
                         disabled
+                      </span>
+                    )}
+                    {cookie.rotationCount > 0 && (
+                      <span className="ml-2 rounded bg-white/5 px-2 py-0.5 text-xs text-[var(--color-muted)]">
+                        rotations: {cookie.rotationCount}
                       </span>
                     )}
                   </p>

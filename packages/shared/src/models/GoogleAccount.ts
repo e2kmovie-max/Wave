@@ -30,6 +30,18 @@ const googleAccountSchema = new Schema(
     disabledAt: { type: Date },
     disabledReason: { type: String },
 
+    /**
+     * True when the master auto-disabled the record on a rotatable instance
+     * error (bot_detected / captcha / login_required / forbidden /
+     * rate_limited). Admins can re-enable from /admin without losing the
+     * audit trail in `disabledReason`.
+     */
+    autoDisabled: { type: Boolean, default: false },
+    /** UNIX timestamp of the most recent auto-disable, for admin diagnostics. */
+    autoDisabledAt: { type: Date },
+    /** Total number of times the master rotated away from this record. */
+    rotationCount: { type: Number, default: 0 },
+
     notes: { type: String },
   },
   { timestamps: true },

@@ -1,0 +1,22 @@
+[Unit]
+Description=Wave web app (Next.js)
+After=network-online.target mongodb.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=wave
+Group=wave
+WorkingDirectory=/opt/wave
+EnvironmentFile=/etc/wave/environment
+ExecStart=/usr/local/bin/bun run --filter @wave/web start
+Restart=on-failure
+RestartSec=5s
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths=/opt/wave/apps/web/.next
+ProtectHome=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

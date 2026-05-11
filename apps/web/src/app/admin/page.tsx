@@ -29,8 +29,14 @@ export default async function AdminHomePage() {
   void Types.ObjectId;
 
   const healthy = instances.filter((i) => i.enabled && i.isHealthy).length;
+  const failing = instances.filter((i) => i.enabled && !i.isHealthy).length;
   const enabledChannels = channels.filter((c) => c.enabled).length;
   const liveCookies = cookies.filter((c) => !c.disabled).length;
+  const autoDisabledCookies = cookies.filter((c) => c.autoDisabled).length;
+  const totalRotations = cookies.reduce(
+    (acc, c) => acc + (c.rotationCount ?? 0),
+    0,
+  );
 
   const tiles: Array<{
     title: string;
@@ -48,13 +54,19 @@ export default async function AdminHomePage() {
       title: "Cookie pool",
       href: "/admin/cookies",
       value: `${liveCookies} / ${cookies.length}`,
-      description: "Active / total Google accounts. Rotated LRU per stream.",
+      description:
+        autoDisabledCookies > 0
+          ? `Active / total. ${autoDisabledCookies} auto-disabled · ${totalRotations} rotations.`
+          : `Active / total. ${totalRotations} rotations so far.`,
     },
     {
       title: "Streaming instances",
       href: "/admin/instances",
       value: `${healthy} / ${instances.length}`,
-      description: "Healthy & enabled / total.",
+      description:
+        failing > 0
+          ? `Healthy & enabled / total. ${failing} currently failing.`
+          : "Healthy & enabled / total.",
     },
     {
       title: "Open rooms",

@@ -1,12 +1,13 @@
 /**
- * Minimal RU/EN translation helper shared between the bot and the web app.
+ * Tiny RU/EN translation helper shared between the bot and the web app.
  *
- * Stage 4 introduces RU+EN strings selected by Telegram `language_code` (`ru*`
- * → RU, anything else → EN). Stage 5 will widen this to the web app with
- * `Accept-Language` autodetect and a richer string table.
+ * Stage 4 introduced RU+EN bot strings selected by Telegram `language_code`
+ * (`ru*` → RU, anything else → EN). Stage 5 expands the table with `web.*`
+ * strings and adds `pickWebLang()` so the Next.js server components can
+ * detect a preferred language from a `wave_lang` cookie or `Accept-Language`.
  *
- * Strings are stored as a flat record so adding a new key is a one-liner that
- * the TS compiler immediately enforces on every `t()` call site.
+ * Strings are stored as a flat record so adding a new key is a one-liner the
+ * TypeScript compiler immediately enforces on every `t()` call site.
  */
 
 export type Lang = "ru" | "en";
@@ -198,6 +199,93 @@ const strings = {
     ru: "Инстанс с таким URL уже существует.",
     en: "An instance with that URL already exists.",
   },
+
+  // ---------------------------------------------------------------------
+  // Web app strings. Keep keys prefixed with `web.` so it's obvious from a
+  // call site whether a string is rendered in the bot or in the browser.
+  // ---------------------------------------------------------------------
+  "web.brand": { ru: "Wave", en: "Wave" },
+  "web.nav.sign_in": { ru: "Войти", en: "Sign in" },
+  "web.nav.sign_out": { ru: "Выйти", en: "Sign out" },
+  "web.nav.account": { ru: "Аккаунт", en: "Account" },
+  "web.nav.admin": { ru: "Админка", en: "Admin" },
+  "web.nav.language": { ru: "Язык", en: "Language" },
+
+  "web.home.title": {
+    ru: "Смотрим видеоролики вместе,",
+    en: "Watch videos together,",
+  },
+  "web.home.title_emph": {
+    ru: "в идеальной синхронизации.",
+    en: "in perfect sync.",
+  },
+  "web.home.lead": {
+    ru: "Пришли ссылку на YouTube (или другой источник из поддерживаемых yt-dlp) и пригласи друзей в общую комнату. Wave синхронизирует play/pause/seek и качество по WebSocket.",
+    en: "Drop in a YouTube link (or any source yt-dlp supports) and invite friends to one shared room. Wave keeps play, pause, seek, and quality in sync over WebSocket.",
+  },
+  "web.home.cta_sign_in": {
+    ru: "Войдите, чтобы создать комнату",
+    en: "Sign in to create a room",
+  },
+  "web.home.form_label": {
+    ru: "Вставьте ссылку на YouTube или другое видео",
+    en: "Paste YouTube / video URL",
+  },
+  "web.home.form_submit": { ru: "Создать комнату", en: "Create room" },
+  "web.home.form_invalid": {
+    ru: "Введите корректный http(s) URL видео.",
+    en: "Enter a valid http(s) video URL.",
+  },
+  "web.home.creating": { ru: "Создаём…", en: "Creating room…" },
+
+  "web.login.title": { ru: "Войдите в Wave", en: "Sign in to Wave" },
+  "web.login.lead": {
+    ru: "Выберите способ. Оба можно связать в одну учётную запись позже из раздела «Аккаунт».",
+    en: "Pick a method. You can link the two later from the Account page.",
+  },
+  "web.login.google": { ru: "Войти через Google", en: "Continue with Google" },
+  "web.login.telegram": { ru: "Открыть Telegram Mini App", en: "Open Telegram Mini App" },
+  "web.login.error_google_unconfigured": {
+    ru: "Google OAuth не настроен. Обратитесь к админу.",
+    en: "Google sign-in isn't configured yet — ask the admin.",
+  },
+  "web.login.error_bot_unconfigured": {
+    ru: "Бот ещё не подключён. Попробуйте Google.",
+    en: "The bot isn't configured yet — try Google.",
+  },
+
+  "web.account.title": { ru: "Аккаунт", en: "Account" },
+  "web.account.linked_google": { ru: "Привязан Google", en: "Linked Google" },
+  "web.account.linked_telegram": { ru: "Привязан Telegram", en: "Linked Telegram" },
+  "web.account.not_linked": { ru: "не привязан", en: "not linked" },
+  "web.account.link_google": { ru: "Привязать Google", en: "Link Google" },
+  "web.account.link_telegram": { ru: "Привязать Telegram", en: "Link Telegram" },
+  "web.account.unlink": { ru: "Отвязать", en: "Unlink" },
+
+  "web.room.title": { ru: "Комната", en: "Room" },
+  "web.room.share_hint": {
+    ru: "Поделитесь ссылкой, чтобы друзья присоединились.",
+    en: "Share this URL to invite friends.",
+  },
+  "web.room.quality": { ru: "Качество", en: "Quality" },
+  "web.room.state_sync": { ru: "Синхронизация", en: "State sync" },
+  "web.room.duration": { ru: "Длительность", en: "Duration" },
+  "web.room.copy_link": { ru: "Скопировать ссылку", en: "Copy link" },
+  "web.room.link_copied": { ru: "Ссылка скопирована", en: "Link copied" },
+
+  "web.admin.title": { ru: "Админ-панель", en: "Admin panel" },
+  "web.admin.cookies": { ru: "Пул Google-кук", en: "Google cookie pool" },
+  "web.admin.instances": { ru: "Инстансы", en: "Instances" },
+  "web.admin.channels": { ru: "Обязательные каналы", en: "Required channels" },
+  "web.admin.health": { ru: "Здоровье", en: "Health" },
+  "web.admin.rotation_count": { ru: "Ротаций", en: "Rotations" },
+  "web.admin.auto_disabled": { ru: "авто-откл.", en: "auto-disabled" },
+  "web.admin.consecutive_failures": {
+    ru: "Подряд фейлов",
+    en: "Consecutive failures",
+  },
+  "web.admin.tools_version": { ru: "Версии yt-dlp / ffmpeg", en: "yt-dlp / ffmpeg" },
+  "web.admin.active_streams": { ru: "Активных стримов", en: "Active streams" },
 } as const satisfies Record<string, { ru: string; en: string }>;
 
 export type I18nKey = keyof typeof strings;
@@ -209,6 +297,61 @@ export function pickLang(languageCode: string | null | undefined): Lang {
     return "ru";
   }
   return "en";
+}
+
+/**
+ * Pick the preferred web language from an explicit override (a `wave_lang`
+ * cookie set by the user) plus the browser's `Accept-Language` header.
+ *
+ *  1. A non-empty explicit override always wins, even if it's something we
+ *     don't translate — we just fall back to the default in that case so
+ *     adding a new language later doesn't break old cookies.
+ *  2. Otherwise we walk the `Accept-Language` header in q-weight order and
+ *     return the first language code that maps to a supported `Lang`.
+ *  3. Default: English.
+ */
+export function pickWebLang(opts: {
+  cookieValue?: string | null;
+  acceptLanguage?: string | null;
+} = {}): Lang {
+  const override = (opts.cookieValue ?? "").trim().toLowerCase();
+  if (override === "ru" || override === "en") return override as Lang;
+  if (override !== "") {
+    // Unknown override — try mapping it anyway, but don't loop into AL
+    return pickLang(override);
+  }
+  const header = opts.acceptLanguage ?? "";
+  for (const entry of parseAcceptLanguage(header)) {
+    if (entry.startsWith("ru") || entry.startsWith("uk") || entry.startsWith("be")) {
+      return "ru";
+    }
+    if (entry.startsWith("en")) return "en";
+  }
+  return "en";
+}
+
+/** Supported languages, in the order surfaced by the language switcher UI. */
+export const SUPPORTED_WEB_LANGS: ReadonlyArray<{ code: Lang; label: string }> = [
+  { code: "en", label: "English" },
+  { code: "ru", label: "Русский" },
+];
+
+function parseAcceptLanguage(header: string): string[] {
+  if (!header) return [];
+  return header
+    .split(",")
+    .map((part) => {
+      const [tag, ...rest] = part.trim().split(";");
+      const q = rest
+        .map((p) => p.trim())
+        .find((p) => p.startsWith("q="))
+        ?.slice(2);
+      const weight = q ? Number(q) : 1;
+      return { tag: (tag || "").toLowerCase(), weight: Number.isFinite(weight) ? weight : 1 };
+    })
+    .filter((p) => p.tag !== "")
+    .sort((a, b) => b.weight - a.weight)
+    .map((p) => p.tag);
 }
 
 /** Interpolates `{name}` placeholders into the string. */

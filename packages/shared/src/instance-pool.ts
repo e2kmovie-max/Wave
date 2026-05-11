@@ -37,6 +37,10 @@ export interface InstanceRecordView {
   toolsFfmpeg?: string;
   activeStreams: number;
   maxStreams: number;
+  /** Number of consecutive failed /health probes; 0 when last probe succeeded. */
+  consecutiveFailures: number;
+  /** Wall-clock start of the current failure streak (if any). */
+  failingSince?: string;
   /** True when the URL is plain http:// — surfaced to the UI as a warning. */
   insecure: boolean;
 }
@@ -103,6 +107,8 @@ export async function listInstances(): Promise<InstanceRecordView[]> {
     toolsFfmpeg: doc.toolsFfmpeg || undefined,
     activeStreams: doc.activeStreams ?? 0,
     maxStreams: doc.maxStreams ?? 0,
+    consecutiveFailures: doc.consecutiveFailures ?? 0,
+    failingSince: doc.failingSince ? doc.failingSince.toISOString() : undefined,
     insecure: doc.url.startsWith("http://"),
   }));
 }

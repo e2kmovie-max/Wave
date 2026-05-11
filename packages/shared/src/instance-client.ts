@@ -82,15 +82,81 @@ export interface StreamRequest {
   userAgent?: string;
 }
 
+/**
+ * Stable error codes the streaming instance reports in the `errorCode` field
+ * of its JSON error responses. They mirror the Go enum in
+ * `apps/instance/internal/streamer/errors.go` — keep the two lists in sync.
+ */
+export type InstanceErrorCode =
+  | "unknown"
+  | "bot_detected"
+  | "captcha"
+  | "login_required"
+  | "forbidden"
+  | "rate_limited"
+  | "unavailable"
+  | "network";
+
+const ROTATABLE_ERROR_CODES = new Set<InstanceErrorCode>([
+  "bot_detected",
+  "captcha",
+  "login_required",
+  "forbidden",
+  "rate_limited",
+]);
+
+/** True when the master should rotate the Google cookie pool and retry. */
+export function isRotatableInstanceErrorCode(code: InstanceErrorCode | undefined): boolean {
+  return code !== undefined && ROTATABLE_ERROR_CODES.has(code);
+}
+
 export class InstanceError extends Error {
+  readonly errorCode: InstanceErrorCode;
+
   constructor(
     message: string,
     readonly status: number,
     readonly body?: string,
+    errorCode?: InstanceErrorCode,
   ) {
     super(message);
     this.name = "InstanceError";
+    this.errorCode = errorCode ?? parseErrorCodeFromBody(body);
   }
+
+  /** True when the cookie pool should be rotated and the call retried. */
+  get rotatable(): boolean {
+    return isRotatableInstanceErrorCode(this.errorCode);
+  }
+}
+
+function parseErrorCodeFromBody(body: string | undefined): InstanceErrorCode {
+  if (!body) return "unknown";
+  try {
+    const parsed: unknown = JSON.parse(body);
+    if (
+      typeof parsed === "object" &&
+      parsed !== null &&
+      typeof (parsed as { errorCode?: unknown }).errorCode === "string"
+    ) {
+      const code = (parsed as { errorCode: string }).errorCode;
+      if (
+        code === "unknown" ||
+        code === "bot_detected" ||
+        code === "captcha" ||
+        code === "login_required" ||
+        code === "forbidden" ||
+        code === "rate_limited" ||
+        code === "unavailable" ||
+        code === "network"
+      ) {
+        return code;
+      }
+    }
+  } catch {
+    // body is plain text — fall through
+  }
+  return "unknown";
 }
 
 function joinUrl(base: string, path: string): string {
@@ -144,7 +210,11 @@ export class InstanceClient {
     const res = await this.signedFetch("/info", body, opts.timeoutMs ?? 30_000);
     const text = await res.text();
     if (!res.ok) {
-      throw new InstanceError(`/info returned ${res.status}`, res.status, text);
+      throw new InstanceError(
+        deriveErrorMessage(text, `/info returned ${res.status}`),
+        res.status,
+        text,
+      );
     }
     return JSON.parse(text) as InstanceInfo;
   }
@@ -197,5 +267,22 @@ export class InstanceClient {
   }
 }
 
+function deriveErrorMessage(body: string, fallback: string): string {
+  try {
+    const parsed: unknown = JSON.parse(body);
+    if (
+      typeof parsed === "object" &&
+      parsed !== null &&
+      typeof (parsed as { error?: unknown }).error === "string" &&
+      (parsed as { error: string }).error.trim() !== ""
+    ) {
+      return (parsed as { error: string }).error;
+    }
+  } catch {
+    // not JSON — fall through
+  }
+  return fallback;
+}
+
 /** Test helper exposed for the master's unit tests. */
-export const __test__ = { signBody };
+export const __test__ = { signBody, parseErrorCodeFromBody, deriveErrorMessage };

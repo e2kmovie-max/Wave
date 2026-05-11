@@ -1,0 +1,58 @@
+# Production compose overlay for the Wave master node.
+#
+# Layers on top of the repo-root `docker-compose.yml` so mongo + the local
+# streaming instance defined there are reused; we only add `web` and `bot`.
+#
+# Usage:
+#   cp .env.example .env  # edit BOT_TOKEN, GOOGLE_*, SESSION_SECRET, …
+#   docker compose -f docker-compose.yml -f deploy/docker-compose.prod.yml \
+#       --profile instance up -d --build
+#
+# Replace `image: oven/bun:1.1` with a tagged image you've prebuilt in CI if you
+# want reproducible deploys. The dev `bun run` below is intentionally minimal so
+# this file works on a fresh checkout.
+
+services:
+  web:
+    image: oven/bun:1.1
+    container_name: wave-web
+    restart: unless-stopped
+    working_dir: /app
+    command: ["bun", "run", "--filter", "@wave/web", "start"]
+    env_file: ../.env
+    environment:
+      MONGODB_URI: mongodb://wave:wave@mongodb:27017/wave?authSource=admin
+      PORT: "3000"
+    ports:
+      - "3000:3000"
+    volumes:
+      - ..:/app:ro
+      - wave_web_next:/app/apps/web/.next
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/api/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  bot:
+    image: oven/bun:1.1
+    container_name: wave-bot
+    restart: unless-stopped
+    working_dir: /app
+    command: ["bun", "run", "--filter", "@wave/bot", "start"]
+    env_file: ../.env
+    environment:
+      MONGODB_URI: mongodb://wave:wave@mongodb:27017/wave?authSource=admin
+    volumes:
+      - ..:/app:ro
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      web:
+        condition: service_started
+
+volumes:
+  wave_web_next:

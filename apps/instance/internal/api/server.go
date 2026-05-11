@@ -111,17 +111,17 @@ type infoRequest struct {
 func (s *Server) handleInfo(w http.ResponseWriter, r *http.Request) {
 	var req infoRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "invalid json: "+err.Error(), http.StatusBadRequest)
+		writeError(w, http.StatusBadRequest, streamer.ErrorCodeUnknown, "invalid json: "+err.Error())
 		return
 	}
 	if strings.TrimSpace(req.URL) == "" {
-		http.Error(w, "url is required", http.StatusBadRequest)
+		writeError(w, http.StatusBadRequest, streamer.ErrorCodeUnknown, "url is required")
 		return
 	}
 
 	cookieFile, err := cookies.Write(req.Cookies)
 	if err != nil {
-		http.Error(w, "write cookies: "+err.Error(), http.StatusBadRequest)
+		writeError(w, http.StatusBadRequest, streamer.ErrorCodeUnknown, "write cookies: "+err.Error())
 		return
 	}
 	defer cookieFile.Remove()
@@ -136,9 +136,11 @@ func (s *Server) handleInfo(w http.ResponseWriter, r *http.Request) {
 		YTDLPBinary: s.cfg.YTDLPBinary,
 	})
 	if err != nil {
-		// Surface yt-dlp errors as 502 so the master knows it's an upstream
-		// problem (e.g. video unavailable, age-restricted, geo-blocked).
-		http.Error(w, "yt-dlp: "+err.Error(), http.StatusBadGateway)
+		if pe := streamer.AsPipelineError(err); pe != nil {
+			writeError(w, pe.Code.HTTPStatus(), pe.Code, pe.Message)
+			return
+		}
+		writeError(w, http.StatusBadGateway, streamer.ErrorCodeUnknown, "yt-dlp: "+err.Error())
 		return
 	}
 	writeJSON(w, http.StatusOK, info)
@@ -153,51 +155,57 @@ type streamRequest struct {
 
 func (s *Server) handleStream(w http.ResponseWriter, r *http.Request) {
 	if max := s.cfg.MaxStreams; max > 0 && s.active.Load() >= max {
-		http.Error(w, "instance is at max streams", http.StatusServiceUnavailable)
+		writeError(w, http.StatusServiceUnavailable, streamer.ErrorCodeUnknown, "instance is at max streams")
 		return
 	}
 
 	var req streamRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "invalid json: "+err.Error(), http.StatusBadRequest)
+		writeError(w, http.StatusBadRequest, streamer.ErrorCodeUnknown, "invalid json: "+err.Error())
 		return
 	}
 	if strings.TrimSpace(req.URL) == "" {
-		http.Error(w, "url is required", http.StatusBadRequest)
+		writeError(w, http.StatusBadRequest, streamer.ErrorCodeUnknown, "url is required")
 		return
 	}
 
 	cookieFile, err := cookies.Write(req.Cookies)
 	if err != nil {
-		http.Error(w, "write cookies: "+err.Error(), http.StatusBadRequest)
+		writeError(w, http.StatusBadRequest, streamer.ErrorCodeUnknown, "write cookies: "+err.Error())
 		return
 	}
 	defer cookieFile.Remove()
-
-	w.Header().Set("Content-Type", "video/mp4")
-	w.Header().Set("Cache-Control", "no-store")
-	// We do not set Content-Length: the remux is streaming and we don't know
-	// the total size until we're done.
 
 	s.active.Add(1)
 	defer s.active.Add(-1)
 
 	flusher, _ := w.(http.Flusher)
-	dst := &flushingWriter{w: w, flusher: flusher}
+	headerOnce := &headerOnceWriter{
+		w:       w,
+		flusher: flusher,
+		writeHeader: func() {
+			w.Header().Set("Content-Type", "video/mp4")
+			w.Header().Set("Cache-Control", "no-store")
+		},
+	}
 
-	if err := streamer.Pipeline(r.Context(), dst, streamer.StreamOptions{
+	result := streamer.Pipeline(r.Context(), headerOnce, streamer.StreamOptions{
 		URL:          req.URL,
 		FormatID:     req.FormatID,
 		CookiesFile:  cookieFilePath(cookieFile),
 		UserAgent:    req.UserAgent,
 		YTDLPBinary:  s.cfg.YTDLPBinary,
 		FFmpegBinary: s.cfg.FFmpegBinary,
-	}); err != nil {
-		// At this point we've already begun streaming bytes; we can't change
-		// the status code, so just log and let the caller see the truncation.
-		// (Log is added by the http.Server's ErrorLog elsewhere.)
-		_ = err
+	})
+
+	if result.Err != nil && result.BytesOut == 0 {
+		// Nothing has been flushed yet, so we can still return a JSON error.
+		writeError(w, result.Err.Code.HTTPStatus(), result.Err.Code, result.Err.Message)
+		return
 	}
+	// Otherwise the response has already been started — we can only stop
+	// writing. The client sees a truncated MP4 and the master will surface a
+	// best-effort error on the next /info or /health.
 }
 
 func cookieFilePath(f *cookies.File) string {
@@ -213,19 +221,43 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 	_ = json.NewEncoder(w).Encode(v)
 }
 
-// flushingWriter forces a flush after every Write so HTTP clients receive the
-// fragmented MP4 progressively.
-type flushingWriter struct {
-	w       http.ResponseWriter
-	flusher http.Flusher
+// headerOnceWriter defers committing the HTTP status (and the streaming
+// Content-Type headers) until the pipeline actually produces bytes. This lets
+// /stream return a JSON error response when yt-dlp fails before producing
+// anything — and behave exactly like the old flushingWriter once the body
+// starts flowing.
+type headerOnceWriter struct {
+	w           http.ResponseWriter
+	flusher     http.Flusher
+	writeHeader func()
+	once        bool
 }
 
-func (fw *flushingWriter) Write(p []byte) (int, error) {
-	n, err := fw.w.Write(p)
-	if fw.flusher != nil && n > 0 {
-		fw.flusher.Flush()
+func (hw *headerOnceWriter) Write(p []byte) (int, error) {
+	if !hw.once {
+		hw.once = true
+		if hw.writeHeader != nil {
+			hw.writeHeader()
+		}
+	}
+	n, err := hw.w.Write(p)
+	if hw.flusher != nil && n > 0 {
+		hw.flusher.Flush()
 	}
 	return n, err
+}
+
+// writeError serialises a JSON error body that the master parses to decide on
+// rotation and retries. The shape — { error, errorCode } — is stable across
+// versions; new codes are added without breaking older masters.
+func writeError(w http.ResponseWriter, status int, code streamer.ErrorCode, message string) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	payload := map[string]string{
+		"error":     message,
+		"errorCode": string(code),
+	}
+	_ = json.NewEncoder(w).Encode(payload)
 }
 
 // refreshToolVersions probes yt-dlp and ffmpeg once at startup and stores the

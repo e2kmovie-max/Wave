@@ -1,0 +1,21 @@
+[Unit]
+Description=Wave Telegram bot (grammY)
+After=network-online.target mongodb.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=wave
+Group=wave
+WorkingDirectory=/opt/wave
+EnvironmentFile=/etc/wave/environment
+ExecStart=/usr/local/bin/bun run --filter @wave/bot start
+Restart=on-failure
+RestartSec=5s
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
