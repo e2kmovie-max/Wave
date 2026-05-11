@@ -17,6 +17,11 @@ export async function GET() {
     user: {
       id: String(user._id),
       isAdmin: user.isAdmin ?? false,
+      guest: user.isGuest
+        ? {
+            name: user.guestName,
+          }
+        : null,
       google: user.googleId
         ? {
             id: user.googleId,

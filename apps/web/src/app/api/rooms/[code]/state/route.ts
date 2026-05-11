@@ -40,6 +40,9 @@ export async function PATCH(
     update.currentTime = Math.max(0, body.currentTime);
   }
   if (typeof body.isPlaying === "boolean") update.isPlaying = body.isPlaying;
+  if (typeof body.playbackRate === "number" && Number.isFinite(body.playbackRate)) {
+    update.playbackRate = Math.min(2, Math.max(0.25, body.playbackRate));
+  }
   if (typeof body.selectedFormatId === "string" && body.selectedFormatId.trim()) {
     update.selectedFormatId = body.selectedFormatId.trim();
     if (typeof body.quality === "string") update.quality = body.quality;

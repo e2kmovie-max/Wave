@@ -244,6 +244,9 @@ const strings = {
     en: "Pick a method. You can link the two later from the Account page.",
   },
   "web.login.google": { ru: "Войти через Google", en: "Continue with Google" },
+  "web.login.guest": { ru: "Войти как гость", en: "Continue as guest" },
+  "web.login.guest_label": { ru: "Гостевой вход", en: "Guest sign-in" },
+  "web.login.guest_placeholder": { ru: "Имя в чате", en: "Chat name" },
   "web.login.telegram": { ru: "Открыть Telegram Mini App", en: "Open Telegram Mini App" },
   "web.login.error_google_unconfigured": {
     ru: "Google OAuth не настроен. Обратитесь к админу.",

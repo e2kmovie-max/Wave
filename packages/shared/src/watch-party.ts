@@ -27,6 +27,7 @@ export interface RoomVideoFormat {
 export interface RoomSyncState {
   currentTime: number;
   isPlaying: boolean;
+  playbackRate: number;
   selectedFormatId?: string;
   quality?: string;
   updatedAt: string;
@@ -66,6 +67,7 @@ export const MAX_COOKIE_ROTATIONS = 3;
 interface RoomStateRecord {
   currentTime?: number;
   isPlaying?: boolean;
+  playbackRate?: number;
   lastSyncAt?: Date;
   selectedFormatId?: string | null;
   quality?: string | null;
@@ -333,6 +335,7 @@ export function makeRoomState(room: RoomStateRecord): RoomSyncState {
   return {
     currentTime,
     isPlaying: Boolean(room.isPlaying),
+    playbackRate: room.playbackRate ?? 1,
     selectedFormatId: room.selectedFormatId ?? undefined,
     quality: room.quality ?? undefined,
     updatedAt: syncedAt.toISOString(),

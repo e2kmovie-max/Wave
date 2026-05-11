@@ -40,6 +40,7 @@ export default async function AccountPage({
 
   const hasGoogle = Boolean(user.googleId);
   const hasTelegram = Boolean(user.telegramId);
+  const isGuest = Boolean(user.isGuest);
 
   return (
     <main className="mx-auto flex min-h-dvh max-w-2xl flex-col px-6 py-10">
@@ -53,6 +54,11 @@ export default async function AccountPage({
       </header>
 
       <h1 className="mb-6 text-3xl font-bold tracking-tight">Account</h1>
+      {isGuest && (
+        <p className="mb-4 rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] p-3 text-sm text-[var(--color-muted)]">
+          Signed in as {user.guestName ?? "Guest"}. Link Google to keep this account.
+        </p>
+      )}
 
       {error && (
         <p className="mb-4 rounded-md border border-[var(--color-danger)]/40 bg-[var(--color-danger)]/10 p-3 text-sm text-[var(--color-danger)]">

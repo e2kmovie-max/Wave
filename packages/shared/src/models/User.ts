@@ -7,6 +7,9 @@ const userSchema = new Schema(
     googleName: { type: String },
     googleAvatar: { type: String },
 
+    guestName: { type: String },
+    isGuest: { type: Boolean, default: false, index: true },
+
     telegramId: { type: Number, index: true, sparse: true, unique: true },
     telegramUsername: { type: String },
     telegramFirstName: { type: String },

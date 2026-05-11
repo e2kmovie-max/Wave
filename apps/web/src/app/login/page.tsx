@@ -76,6 +76,25 @@ export default async function LoginPage({
             </Button>
           )}
 
+          <form
+            action={`/api/auth/guest?next=${encodeURIComponent(next)}`}
+            method="post"
+            className="grid gap-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3"
+          >
+            <label className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--color-muted)]">
+              {t("web.login.guest_label")}
+            </label>
+            <input
+              name="name"
+              maxLength={32}
+              placeholder={t("web.login.guest_placeholder")}
+              className="min-h-10 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 text-sm outline-none transition focus:border-[var(--color-accent)]"
+            />
+            <Button size="lg" variant="secondary" className="w-full" type="submit">
+              {t("web.login.guest")}
+            </Button>
+          </form>
+
           <div className="my-1 flex items-center gap-3 text-xs text-[var(--color-muted)]">
             <span className="h-px flex-1 bg-[var(--color-border)]" />
             {lang === "ru" ? "или" : "or"}

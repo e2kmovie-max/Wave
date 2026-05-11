@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { connectMongo, getEnv, makeRoomState, Room } from "@wave/shared";
+import { connectMongo, getEnv, makeRoomState, Room, User } from "@wave/shared";
 import { readSession } from "@/lib/session";
 import { Button } from "@/components/ui/button";
 import {
@@ -10,7 +10,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { RoomPlayer, type PlayerFormat } from "./room-player";
+import { RoomPlayer, type ChatMessage, type PlayerFormat } from "./room-player";
 
 export const dynamic = "force-dynamic";
 
@@ -24,8 +24,12 @@ export default async function RoomPage({
   if (!session) redirect(`/login?next=/rooms/${encodeURIComponent(code)}`);
 
   await connectMongo();
-  const room = await Room.findOne({ code: code.toUpperCase(), isClosed: false }).lean();
+  const [room, user] = await Promise.all([
+    Room.findOne({ code: code.toUpperCase(), isClosed: false }).lean(),
+    User.findById(session.uid).lean(),
+  ]);
   if (!room) notFound();
+  if (!user) redirect(`/login?next=/rooms/${encodeURIComponent(code)}`);
 
   const env = getEnv();
   const webInvite = `${env.PUBLIC_WEB_URL.replace(/\/$/, "")}/rooms/${room.code}`;
@@ -37,9 +41,19 @@ export default async function RoomPage({
     formatId: format.formatId,
     label: format.label,
   }));
+  const initialMessages: ChatMessage[] = (room.chatMessages ?? []).slice(-100).map((message) => ({
+    id: String(message._id),
+    name: message.name,
+    text: message.text,
+    createdAt: (message.createdAt ?? new Date()).toISOString(),
+  }));
+  const currentUser = {
+    id: String(user._id),
+    name: displayName(user),
+  };
 
   return (
-    <main className="mx-auto flex min-h-dvh max-w-6xl flex-col gap-6 px-6 py-8">
+    <main className="mx-auto flex min-h-dvh max-w-7xl flex-col gap-6 px-6 py-8">
       <header className="flex items-center justify-between">
         <Link href="/" className="text-sm text-[var(--color-muted)] hover:underline">
           ← Home
@@ -66,6 +80,8 @@ export default async function RoomPage({
             code={room.code}
             formats={formats}
             initialState={makeRoomState(room)}
+            initialMessages={initialMessages}
+            currentUser={currentUser}
           />
         </div>
 
@@ -131,4 +147,21 @@ function formatDuration(seconds?: number): string {
   const minutes = Math.floor(rounded / 60);
   const rest = rounded % 60;
   return `${minutes}:${rest.toString().padStart(2, "0")}`;
+}
+
+function displayName(user: {
+  googleName?: string | null;
+  googleEmail?: string | null;
+  telegramUsername?: string | null;
+  telegramFirstName?: string | null;
+  guestName?: string | null;
+}): string {
+  return (
+    user.googleName ??
+    user.telegramUsername ??
+    user.telegramFirstName ??
+    user.guestName ??
+    user.googleEmail ??
+    "Guest"
+  );
 }
