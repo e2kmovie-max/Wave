@@ -46,12 +46,20 @@ Wave/
 │   ├── bot/          grammY Telegram bot
 │   └── instance/     Go streaming instance (Stage 2)
 ├── packages/
-│   └── shared/       Mongoose models + env + crypto + Telegram helpers
+│   ├── interface/    Future wave-interface facade: UI/auth/Mini App/user identity
+│   ├── player/       Future wave-player facade: video/instances/cookies/yt-dlp
+│   ├── social/       Future wave-social facade: rooms/chat/status/OP gate
+│   └── shared/       Internal Mongoose models + env + crypto + Telegram helpers
 ├── docker-compose.yml   Local MongoDB
 ├── tsconfig.base.json
 ├── bunfig.toml
 └── package.json
 ```
+
+The repo is intentionally still a monorepo. The future three-repository split
+is prepared through the domain facades above; app code should import through
+`@wave/interface`, `@wave/player`, and `@wave/social` where possible. See
+[`docs/split-architecture.md`](./docs/split-architecture.md).
 
 ## Quickstart (local dev)
 

@@ -6,7 +6,7 @@ import {
   getEnv,
   isBotConfigured,
   verifyTelegramInitData,
-} from "@wave/shared";
+} from "@wave/interface";
 import { readSession, writeSession } from "@/lib/session";
 
 export const runtime = "nodejs";

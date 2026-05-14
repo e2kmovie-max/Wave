@@ -3,7 +3,7 @@ import type { IncomingMessage } from "node:http";
 import next from "next";
 import { WebSocket, WebSocketServer, type RawData } from "ws";
 import { Types } from "mongoose";
-import { connectMongo, makeRoomState, Room, User } from "@wave/shared";
+import { connectMongo, makeRoomState, Room, User } from "@wave/social";
 
 const dev = process.env.NODE_ENV !== "production";
 const hostname = process.env.HOSTNAME ?? "0.0.0.0";

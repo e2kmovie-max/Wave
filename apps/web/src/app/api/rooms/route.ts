@@ -1,10 +1,9 @@
 import { NextResponse } from "next/server";
 import {
   WatchPartyError,
-  checkTelegramSubscriptions,
-  connectMongo,
   createWatchRoom,
-} from "@wave/shared";
+} from "@wave/player";
+import { checkTelegramSubscriptions, connectMongo } from "@wave/social";
 import { requireCurrentUser } from "@/lib/room-access";
 
 export const runtime = "nodejs";

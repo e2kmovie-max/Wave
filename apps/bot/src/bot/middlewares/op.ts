@@ -17,7 +17,7 @@ import {
   listEnabledRequiredChannels,
   User,
   type RequiredChannelLite,
-} from "@wave/shared";
+} from "@wave/social";
 import type { WaveContext } from "../context";
 
 export const OP_CONTINUE_CALLBACK = "op:continue";

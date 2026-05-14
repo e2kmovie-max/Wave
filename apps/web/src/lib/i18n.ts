@@ -1,14 +1,14 @@
 /**
  * Server-side language detection for the Next.js web app.
  *
- * The actual string table + heuristics live in `@wave/shared/i18n` so they're
+ * The actual string table + heuristics live behind `@wave/interface` so they're
  * shared with the bot. This module just wires the Next request primitives
  * (`headers()`, `cookies()`) into the shared helper and re-exports the
  * `t(lang, key)` function for convenience in server components.
  */
 
 import { cookies, headers } from "next/headers";
-import { pickWebLang, t, type I18nKey, type Lang } from "@wave/shared";
+import { pickWebLang, t, type I18nKey, type Lang } from "@wave/interface";
 
 /** The cookie name used to persist the user's explicit language override. */
 export const LANG_COOKIE_NAME = "wave_lang";

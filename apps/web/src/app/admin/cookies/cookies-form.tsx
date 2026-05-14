@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
-import type { CookieRecordView } from "@wave/shared";
+import type { CookieRecordView } from "@wave/player";
 
 export function CookiesForm({ initial }: { initial: CookieRecordView[] }) {
   const [cookies, setCookies] = useState<CookieRecordView[]>(initial);

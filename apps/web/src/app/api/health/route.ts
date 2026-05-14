@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { connectMongo } from "@wave/shared";
+import { connectMongo } from "@wave/interface";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

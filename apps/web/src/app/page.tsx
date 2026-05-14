@@ -7,7 +7,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { isGoogleOAuthConfigured, isBotConfigured } from "@wave/shared";
+import { isGoogleOAuthConfigured, isBotConfigured } from "@wave/interface";
 import { readSession } from "@/lib/session";
 import { checkAdmin } from "@/lib/admin-access";
 import { getTranslator } from "@/lib/i18n";

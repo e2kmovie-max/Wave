@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { Types } from "mongoose";
-import { connectMongo, User } from "@wave/shared";
+import { connectMongo, User } from "@wave/interface";
 import { readSession } from "@/lib/session";
 
 export async function requireCurrentUser(next?: string) {

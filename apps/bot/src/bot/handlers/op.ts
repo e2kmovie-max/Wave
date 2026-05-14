@@ -1,5 +1,7 @@
 import { Composer } from "grammy";
-import { Room, createWatchRoom, getEnv, WatchPartyError } from "@wave/shared";
+import { getEnv } from "@wave/interface";
+import { createWatchRoom, WatchPartyError } from "@wave/player";
+import { Room } from "@wave/social";
 import type { WaveContext } from "../context";
 import {
   OP_CONTINUE_CALLBACK,

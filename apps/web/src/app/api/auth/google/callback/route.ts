@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Types } from "mongoose";
-import { connectMongo, User, isGoogleOAuthConfigured } from "@wave/shared";
+import { connectMongo, User, isGoogleOAuthConfigured } from "@wave/interface";
 import { exchangeCodeForProfile, parseGoogleAuthState } from "@/lib/google-oauth";
 import { writeSession } from "@/lib/session";
 

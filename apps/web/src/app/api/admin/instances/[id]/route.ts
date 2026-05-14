@@ -5,7 +5,7 @@ import {
   connectMongo,
   deleteAdminInstance,
   setInstanceEnabled,
-} from "@wave/shared";
+} from "@wave/player";
 import { checkAdmin } from "@/lib/admin-access";
 
 export const runtime = "nodejs";

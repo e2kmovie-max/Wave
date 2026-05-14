@@ -4,7 +4,7 @@ import {
   connectMongo,
   deleteRequiredChannel,
   setRequiredChannelEnabled,
-} from "@wave/shared";
+} from "@wave/social";
 import { checkAdmin } from "@/lib/admin-access";
 
 export const runtime = "nodejs";

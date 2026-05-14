@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { Types } from "mongoose";
-import { connectMongo, User, getEnv, type UserDoc } from "@wave/shared";
+import { connectMongo, User, getEnv, type UserDoc } from "@wave/interface";
 import { readSession } from "@/lib/session";
 import type { HydratedDocument } from "mongoose";
 

@@ -1,4 +1,4 @@
-import { connectMongo, listInstances } from "@wave/shared";
+import { connectMongo, listInstances } from "@wave/player";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { InstancesForm } from "./instances-form";
 

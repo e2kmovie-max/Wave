@@ -1,5 +1,5 @@
 import { type Conversation, createConversation } from "@grammyjs/conversations";
-import { CookiePoolError, addCookieAccount } from "@wave/shared";
+import { CookiePoolError, addCookieAccount } from "@wave/player";
 import type { WaveContext } from "../context";
 
 export const ADD_COOKIES_CONVERSATION = "add-cookies";

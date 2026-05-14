@@ -1,4 +1,4 @@
-import { connectMongo, listRequiredChannels } from "@wave/shared";
+import { connectMongo, listRequiredChannels } from "@wave/social";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChannelsForm } from "./channels-form";
 
