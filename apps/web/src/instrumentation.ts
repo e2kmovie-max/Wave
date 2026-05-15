@@ -16,9 +16,10 @@
 export async function register(): Promise<void> {
   if (process.env.NEXT_RUNTIME !== "nodejs") return;
 
-  const { connectMongo, getEnv, syncInstancesFromEnv, startInstanceHealthLoop } = await import(
-    "@wave/shared"
+  const { connectMongo, syncInstancesFromEnv, startInstanceHealthLoop } = await import(
+    "@wave/player"
   );
+  const { getEnv } = await import("@wave/interface");
   const env = getEnv();
 
   try {

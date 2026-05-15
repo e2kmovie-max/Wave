@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { isGoogleOAuthConfigured, isBotConfigured, getEnv } from "@wave/shared";
+import { isGoogleOAuthConfigured, isBotConfigured, getEnv } from "@wave/interface";
 import { Button } from "@/components/ui/button";
 import { getTranslator } from "@/lib/i18n";
 import {

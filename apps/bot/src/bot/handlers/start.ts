@@ -1,5 +1,6 @@
 import { Composer } from "grammy";
-import { Room, User } from "@wave/shared";
+import { User } from "@wave/interface";
+import { Room } from "@wave/social";
 import type { WaveContext } from "../context";
 import { gateBehindOp, openRoomForUser } from "./op";
 

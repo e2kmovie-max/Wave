@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
-import type { RequiredChannelView } from "@wave/shared";
+import type { RequiredChannelView } from "@wave/social";
 
 type Channel = RequiredChannelView;
 

@@ -1,5 +1,5 @@
 import { type Conversation, createConversation } from "@grammyjs/conversations";
-import { RequiredChannelError, addRequiredChannel, parseChannelInput } from "@wave/shared";
+import { RequiredChannelError, addRequiredChannel, parseChannelInput } from "@wave/social";
 import type { WaveContext } from "../context";
 
 export const ADD_CHANNEL_CONVERSATION = "add-channel";

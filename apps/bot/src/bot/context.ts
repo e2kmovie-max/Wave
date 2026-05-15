@@ -1,6 +1,6 @@
 import type { Context, SessionFlavor } from "grammy";
 import type { ConversationFlavor } from "@grammyjs/conversations";
-import type { I18nKey, Lang, UserDoc } from "@wave/shared";
+import type { I18nKey, Lang, UserDoc } from "@wave/interface";
 import type { HydratedDocument } from "mongoose";
 
 /**

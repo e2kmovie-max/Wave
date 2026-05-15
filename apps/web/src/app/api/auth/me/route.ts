@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { Types } from "mongoose";
-import { connectMongo, User } from "@wave/shared";
+import { connectMongo, User } from "@wave/interface";
 import { readSession } from "@/lib/session";
 
 export const runtime = "nodejs";

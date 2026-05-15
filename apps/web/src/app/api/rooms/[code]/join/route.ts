@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { connectMongo, Room } from "@wave/shared";
+import { connectMongo, Room } from "@wave/social";
 import { requireCurrentUser } from "@/lib/room-access";
 
 export const runtime = "nodejs";

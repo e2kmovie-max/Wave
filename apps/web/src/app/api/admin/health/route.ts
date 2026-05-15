@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { collectInstanceHealth, connectMongo, listCookieAccounts } from "@wave/shared";
+import { collectInstanceHealth, connectMongo, listCookieAccounts } from "@wave/player";
 import { checkAdmin } from "@/lib/admin-access";
 
 export const runtime = "nodejs";

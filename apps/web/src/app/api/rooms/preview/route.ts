@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { connectMongo, previewVideo, WatchPartyError } from "@wave/shared";
+import { connectMongo, previewVideo, WatchPartyError } from "@wave/player";
 import { requireCurrentUser } from "@/lib/room-access";
 
 export const runtime = "nodejs";

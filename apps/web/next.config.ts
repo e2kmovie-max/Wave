@@ -9,7 +9,7 @@ const nextConfig: NextConfig = {
   },
   // Mongoose ships with optional native modules; keep it as an external on the server.
   serverExternalPackages: ["mongoose"],
-  transpilePackages: ["@wave/shared"],
+  transpilePackages: ["@wave/interface", "@wave/player", "@wave/social", "@wave/shared"],
 };
 
 export default nextConfig;

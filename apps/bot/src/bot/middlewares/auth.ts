@@ -1,5 +1,5 @@
 import type { MiddlewareFn } from "grammy";
-import { User, getEnv, pickLang, t } from "@wave/shared";
+import { User, getEnv, pickLang, t } from "@wave/interface";
 import type { WaveContext } from "../context";
 
 /**

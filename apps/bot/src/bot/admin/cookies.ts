@@ -5,7 +5,7 @@ import {
   listCookieAccounts,
   setCookieAccountDisabled,
   type CookieRecordView,
-} from "@wave/shared";
+} from "@wave/player";
 import type { WaveContext } from "../context";
 import { editOrReply } from "./index";
 import { ADD_COOKIES_CONVERSATION } from "../conversations/add-cookies";

@@ -1,4 +1,4 @@
-import { connectMongo, getEnv, isBotConfigured } from "@wave/shared";
+import { connectMongo, getEnv, isBotConfigured } from "@wave/interface";
 import { createBot } from "./bot";
 
 async function main() {

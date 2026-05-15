@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { SUPPORTED_WEB_LANGS, type Lang } from "@wave/shared";
+import { SUPPORTED_WEB_LANGS, type Lang } from "@wave/interface";
 import { LANG_COOKIE_NAME } from "@/lib/i18n";
 
 export const runtime = "nodejs";

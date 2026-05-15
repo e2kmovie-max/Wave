@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
-import type { InstanceRecordView } from "@wave/shared";
+import type { InstanceRecordView } from "@wave/player";
 
 export function InstancesForm({ initial }: { initial: InstanceRecordView[] }) {
   const [instances, setInstances] = useState<InstanceRecordView[]>(initial);

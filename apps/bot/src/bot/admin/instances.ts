@@ -5,7 +5,7 @@ import {
   listInstances,
   setInstanceEnabled,
   type InstanceRecordView,
-} from "@wave/shared";
+} from "@wave/player";
 import type { WaveContext } from "../context";
 import { editOrReply } from "./index";
 import { ADD_INSTANCE_CONVERSATION } from "../conversations/add-instance";

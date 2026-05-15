@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { connectMongo, getEnv, makeRoomState, Room, User } from "@wave/shared";
+import { getEnv, User } from "@wave/interface";
+import { connectMongo, makeRoomState, Room } from "@wave/social";
 import { readSession } from "@/lib/session";
 import { Button } from "@/components/ui/button";
 import {

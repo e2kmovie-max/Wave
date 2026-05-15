@@ -1,5 +1,5 @@
 import { type Conversation, createConversation } from "@grammyjs/conversations";
-import { InstancePoolError, addAdminInstance } from "@wave/shared";
+import { InstancePoolError, addAdminInstance } from "@wave/player";
 import type { WaveContext } from "../context";
 
 export const ADD_INSTANCE_CONVERSATION = "add-instance";

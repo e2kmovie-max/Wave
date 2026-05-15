@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef } from "react";
-import { SUPPORTED_WEB_LANGS, type Lang } from "@wave/shared/i18n";
+import { SUPPORTED_WEB_LANGS, type Lang } from "@wave/interface/i18n";
 
 /**
  * Compact language switcher. Posts to `/api/lang` so it round-trips through

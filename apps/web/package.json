@@ -10,7 +10,9 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@wave/shared": "workspace:*",
+    "@wave/interface": "workspace:*",
+    "@wave/player": "workspace:*",
+    "@wave/social": "workspace:*",
     "clsx": "^2.1.1",
     "mongoose": "^8.8.0",
     "next": "^15.0.3",

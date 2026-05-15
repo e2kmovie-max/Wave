@@ -4,9 +4,11 @@ import {
   connectMongo,
   listCookieAccounts,
   listInstances,
+} from "@wave/player";
+import {
   listRequiredChannels,
   Room,
-} from "@wave/shared";
+} from "@wave/social";
 import {
   Card,
   CardContent,

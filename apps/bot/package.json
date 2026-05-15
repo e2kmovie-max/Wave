@@ -12,7 +12,9 @@
   },
   "dependencies": {
     "@grammyjs/conversations": "^2.0.1",
-    "@wave/shared": "workspace:*",
+    "@wave/interface": "workspace:*",
+    "@wave/player": "workspace:*",
+    "@wave/social": "workspace:*",
     "grammy": "^1.34.0",
     "mongoose": "^8.8.0"
   },

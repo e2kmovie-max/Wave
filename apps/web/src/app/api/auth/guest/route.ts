@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { connectMongo, User } from "@wave/shared";
+import { connectMongo, User } from "@wave/interface";
 import { writeSession } from "@/lib/session";
 
 export const runtime = "nodejs";

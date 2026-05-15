@@ -5,7 +5,7 @@ import {
   listRequiredChannels,
   setRequiredChannelEnabled,
   type RequiredChannelView,
-} from "@wave/shared";
+} from "@wave/social";
 import type { WaveContext } from "../context";
 import { editOrReply } from "./index";
 import { ADD_CHANNEL_CONVERSATION } from "../conversations/add-channel";

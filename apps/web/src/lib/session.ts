@@ -1,5 +1,5 @@
 import { cookies } from "next/headers";
-import { signToken, verifyToken } from "@wave/shared";
+import { signToken, verifyToken } from "@wave/interface";
 
 const SESSION_COOKIE = "wave_session";
 const SESSION_TTL_SECONDS = 60 * 60 * 24 * 30; // 30 days

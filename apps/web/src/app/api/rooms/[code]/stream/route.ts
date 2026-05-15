@@ -7,7 +7,7 @@ import {
   Room,
   WatchPartyError,
   withCookieRotation,
-} from "@wave/shared";
+} from "@wave/player";
 import { requireCurrentUser } from "@/lib/room-access";
 
 export const runtime = "nodejs";

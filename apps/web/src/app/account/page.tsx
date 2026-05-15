@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { Types } from "mongoose";
-import { connectMongo, User, getEnv, isGoogleOAuthConfigured } from "@wave/shared";
+import { connectMongo, User, getEnv, isGoogleOAuthConfigured } from "@wave/interface";
 import { readSession } from "@/lib/session";
 import { Button } from "@/components/ui/button";
 import {

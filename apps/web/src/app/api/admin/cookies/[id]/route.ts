@@ -4,7 +4,7 @@ import {
   connectMongo,
   deleteCookieAccount,
   setCookieAccountDisabled,
-} from "@wave/shared";
+} from "@wave/player";
 import { checkAdmin } from "@/lib/admin-access";
 
 export const runtime = "nodejs";

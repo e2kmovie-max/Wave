@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { isGoogleOAuthConfigured } from "@wave/shared";
+import { isGoogleOAuthConfigured } from "@wave/interface";
 import { buildGoogleAuthUrl } from "@/lib/google-oauth";
 import { readSession } from "@/lib/session";
 

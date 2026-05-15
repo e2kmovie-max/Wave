@@ -1,4 +1,4 @@
-import { connectMongo, listCookieAccounts } from "@wave/shared";
+import { connectMongo, listCookieAccounts } from "@wave/player";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { CookiesForm } from "./cookies-form";
 
